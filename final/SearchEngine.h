@@ -89,9 +89,9 @@ public:
 		}
 		cerr << "[*] End negaScout" << "\n";
 		
-		// 翻棋子不會造成 3 循環(因為翻出來之後一定沒辦法往回走)
 		if(BestMove.st == BestMove.ed){
-
+			// 翻棋子不會造成 3 循環(因為翻出來之後一定沒辦法往回走)
+			// 所以不需要紀錄曾經參訪, 因為一定不會重複盤面
 		}
 		else{
 			cerr << "[*] Checking Repetition......\n";
@@ -101,7 +101,7 @@ public:
 			cerr << "[*] nextB.hashKey: " << bitset<64>(nextB.hashKey) << "\n";
 			record = this->visitedTable.getVal(nextB.hashKey);
 			// 如果 flag 已經是 2 了, 那就亂走
-			if(record.flag != nullptr) cerr << "[*] This Board has visited: " << *record.flag << "\n";
+			if(record.flag != nullptr) this->logger << "[*] This Board has been visited: " << *record.flag << "\n";
 			if(record.flag != nullptr && (*record.flag) >= 2){
 				if(B.sumCnt > 0) {
 					// 翻子絕對不會造成三循環
@@ -113,7 +113,7 @@ public:
 					
 				}	
 			}			
-			// 如果最後選出來是走吃步
+			// 如果最後選出來是走吃步, 就記一下參訪過
 			if(BestMove.st != BestMove.ed){
 				nextB = B;
 				nextB.DoMove(BestMove, FIN(15));
