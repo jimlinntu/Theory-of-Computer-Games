@@ -38,10 +38,10 @@ public:
 	static SCORE vMax;
 	static SCORE vMin;
 	static SCORE finScore[7]; // 0: «Ó±N, ..., 6: §L¨ò
-	int cutOffDepth = 5; // search up to (depth == 7)
+	int cutOffDepth = 8; // search up to (depth == 7)
 	int timeOut; // in milliseconds
 	timeval start;
-	TranspositionTable transTable[2]; // 0: myself, 1: opponent 
+	TranspositionTable transTable[2]; // 0: red, 1: black
 	TranspositionTable visitedTable; // ÀË¬d¦³¨S¦³¤T´`Àôªº table
 	fstream logger;
 
@@ -95,6 +95,7 @@ public:
 		}
 		else{
 			cerr << "[*] Checking Repetition......\n";
+			// FIXME: ·|¥d¦í¡H¡H
 			// ¦pªG¤£¬OÂ½´Ñ¡A­n¦Ò¼{¬İ¬İ¦³¨S¦³¥i¯à³y¦¨ 3 ´`Àô
 			BOARD nextB = B;
 			nextB.DoMove(BestMove, FIN(15));
@@ -153,11 +154,12 @@ public:
 	}
 	
 	bool randomFlip(const BOARD &B, MOV &BestMove){
-		cerr << "randomFlip\n";
+		
 		// * ¤£­nÂ½¨ì§O¤Hªº¤l®ÇÃä
 		// * °£¤F¦pªG¼Ä¤HÂ½¨ì¯¥©Î«Ó, ª½±µÂ½¥L®ÇÃä·F±¼¥L
 		if(B.sumCnt==0) return false;
 		vector<MOV> movList;
+		vector<MOV> dangerList;
 		CLR oppColor = (B.who^1); // ¦pªG B.who == -1, B.who^1 ·|ÅÜ¦¨ -2, ¤£¼vñ
 		
 		for(POS p = 0; p < 32; p++){
@@ -180,15 +182,24 @@ public:
 				}
 				// ¦pªG¤£¦MÀI¤~ push back
 				if(!isDangerous) movList.push_back(MOV(p, p));
+				else dangerList.push_back(MOV(p, p));
 			}
 		}
-		assert(movList.size() > 0);
-		uniform_int_distribution<int> U(0, movList.size()-1);
-		BestMove = movList[U(gen)];
-		cerr << "randflip end\n";
+		
+		if(movList.size() == 0){
+			// ¦pªG³s danger list m¨S¦³ªº¸Ü
+			if(dangerList.size() == 0) return false;
+			uniform_int_distribution<int> U(0, dangerList.size()-1);
+			BestMove = dangerList[U(gen)];
+		}else{
+			uniform_int_distribution<int> U(0, movList.size()-1);
+			BestMove = movList[U(gen)];
+		}
+		
 		return true;
 	}
 	void randomMove(const BOARD &B, MOV &BestMove, const MOV &prohitbitMove){
+		cerr << "[!] In randomMove: \n";
 		vector<MOV> movList; // population
 		for(POS p = 0; p < 32; p++){
 			FIN pf = B.fin[p];
@@ -210,13 +221,58 @@ public:
 				}
 			}
 		}
-		// random sample one move
-		uniform_int_distribution<int> U(0, movList.size()-1);
-		BestMove = movList[U(gen)];
+		// FIXME: I think i may happen
+		if(movList.size() == 0){
+			// Let it go ¥u¦nÅı¥L©M§½
+			BestMove = prohitbitMove;
+		}else{
+			// random sample one move
+			uniform_int_distribution<int> U(0, movList.size()-1);
+			BestMove = movList[U(gen)];
+		}
 	}
 
 	// ¥J²Ó«ä¦Ò
 	SCORE negaScout(const BOARD &B, SCORE alpha, SCORE beta, MOV &BestMove, const int depth){
+		// ÀË¬d transposition table
+		Record record; // ¦s retrieve ¥X¨Óªºµ²ªG
+		if(B.who != -1){
+			record = this->transTable[B.who].getVal(B.hashKey);
+			if(record.val != nullptr){
+				cerr << "record value: " << *record.val  << " , flag: " \
+				 << *record.flag << " , remain depth" << *record.depth << "\n";
+			}
+		}
+		if(record.val != nullptr){
+			// ²Ä¤@¼h¤£¥iª½±µ¦^¶Ç, ¤£µM·|§ä¤£¨ì BestMove
+			if(depth != 0){
+				// exact
+				if(*record.flag == 0){
+					// ÀË¬d²`«×: ©Ò³Ñ²`«× ¤ñ ¸Ì­±ªº©Ò³Ñ²`«×ÁÙ¤p
+					if((this->cutOffDepth - depth) <= *record.depth ){
+						// ¥i¥Hª½±µ¦^¶Ç
+						return *record.val;
+					}
+				}
+				// lower bound(§â alpha ©Ô°ª¤@ÂI)
+				if(*record.flag == 1){
+					if((this->cutOffDepth - depth) <= *record.depth ){
+						alpha = MAX(alpha, *record.val);
+					}
+				}
+				// upper bound(§â beta ©Ô§C¤@ÂI)
+				else if(*record.flag == 2){
+					if((this->cutOffDepth - depth) <= *record.depth){
+						beta = MIN(beta, *record.val);
+					}
+				}
+				// check cutoff
+				if(alpha >= beta){
+					return beta;
+				}
+			}
+		}
+		
 		MOVLST lst;
 		// ¥u¦b root ªº®É­Ô ©Î ¤p©ó 3 ¤l¨SÂ½¥X¨Óªº®É­Ô ¤~¼ÒÀÀÂ½¥X¤l¨Óªº±¡ªp, ¨ä¥L±¡ªpm¥u¹ïÂ½¶}¨Óªº¤l°µ·j´M
 		// if(depth == 0 || B.sumCnt < 3){
@@ -231,7 +287,7 @@ public:
 		timeval stop;
 		gettimeofday(&stop, NULL);
 		const int milliElapsed = (stop.tv_sec - start.tv_sec) * 1000 + (stop.tv_usec-start.tv_usec) / 1000;
-	
+
 		if(milliElapsed > this->timeOut || B.getWinner() != -1 
 			|| depth == this->cutOffDepth || lst.num == 0){
 			this->logger << "[*] Scout Depth: " << depth << "\n";
@@ -270,10 +326,46 @@ public:
 				}
 				
 				if(m >= beta){
-					break; //return m
+					if(B.who != -1){
+						if(record.val != nullptr){
+							if((this->cutOffDepth - depth) >  *record.depth){
+								*record.val = m;
+								*record.flag = 1;
+								*record.depth = this->cutOffDepth - depth;
+							}
+						} // lower bound
+						else this->transTable[B.who].insert(B.hashKey, m, 1, this->cutOffDepth - depth);
+					}
+					return m;
 				}
 			}
 			n = MAX(alpha, m) + 1; // null window
+		}
+
+		if(m > alpha){
+			// element ¦s¦b®É
+			if(record.val != nullptr){
+				// ÀË¬d²`«×¦³¨S¦³ÅÜ²`
+				// remain ²`«×¤j©ó hash entry ªº
+				if((this->cutOffDepth - depth) >  *record.depth){
+					*record.val = m;
+					*record.flag = 0;
+					*record.depth = this->cutOffDepth - depth;
+				}
+			}else{
+				// ª½±µ´¡¤J­È
+				this->transTable[B.who].insert(B.hashKey, m, 0, this->cutOffDepth - depth);
+			}
+			
+		}else{
+			if(record.val != nullptr){
+				if((this->cutOffDepth - depth) >  *record.depth){
+					*record.val = m;
+					*record.flag = 2; // upper bound
+					*record.depth = this->cutOffDepth - depth;
+				}
+			} // upper bound
+			else this->transTable[B.who].insert(B.hashKey, m, 2, this->cutOffDepth - depth);
 		}
 
 		return m;

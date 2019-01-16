@@ -14,6 +14,9 @@ struct Record{
     double *val;
     short int *flag;
     int *depth;
+    Record(){
+        val = nullptr, flag = nullptr, depth = nullptr;
+    };
     Record(double *value, short int *flag_, int *depth_): val(value), flag(flag_), depth(depth_){};
 };
 
