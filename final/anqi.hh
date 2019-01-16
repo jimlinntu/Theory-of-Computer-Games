@@ -1,12 +1,14 @@
 #ifndef ANQI
 #define ANQI
+#include<random>
 
+using namespace std;
 // (color)
 //  0 = ¬õ¤è (¤j¼g¦r¥À)
 //  1 = ¶Â¤è (¤p¼g¦r¥À)
 // -1 = m¤£¬O
 typedef int CLR;
-
+using ULL = unsigned long long;
 // (level)
 enum LVL {
 	LVL_K=0, // «Ó±N King
@@ -60,6 +62,12 @@ struct BOARD {
 	CLR who;     // ²{¦b½ü¨ì¨º¤@¤è¤U
 	FIN fin[32]; // ¦U­Ó¦ì¸m¤W­±Â\¤FÔ£
 	int cnt[14]; // ¦UºØ´Ñ¤lªº¥¼Â½¶}¼Æ¶q
+	int sumCnt; // ¦UºØ´Ñ¤lªº¥¼Â½¶}¼Æ¶qÁ`¼Æ
+	unsigned long long hashKey; // ¦b Transposition Table ·|¥Î¤W
+	// double evalScore; // ·í«e¼f§½¤À
+	static ULL s[16][32]; // 64 bit
+	static ULL color[3]; // 0:¬õ¤è, 1:¶Â¤è, 2:unknown
+	static mt19937_64 gen;
 
 	void NewGame();              // ¶}·s¹CÀ¸
 	int  LoadGame(const char*);  // ¸ü¤J¹CÀ¸¨Ã¶Ç¦^®É­­(³æ¦ì:¬í)
@@ -70,17 +78,23 @@ struct BOARD {
 	int MoveGenWithFlip(MOVLST& ) const;       // ¦C¥X©Ò¦³¨«ªk (¨«¤l + ¦Y¤l + Â½¤l)
 	//
 	bool ChkLose() const;        // ÀË¬d·í«eª±®a(who)¬O§_¿é¤F
+	CLR getWinner() const ;  // ¦^¶ÇÄ¹ªºª±®a
+
 	bool ChkValid(MOV) const;    // ÀË¬d¬O§_¬°¦Xªk¨«ªk
 	void Flip(POS,FIN=FIN_X);    // Â½¤l
 	void Move(MOV);              // ²¾°Ê or ¦Y¤l
 	void DoMove(MOV m, FIN f) ;
+	static ULL hashDoMove(MOV m, FIN fromF, FIN toF);
+	static bool initRandom(); 
 	//void Init(int Board[32], int Piece[14], int Color);
 	void Init(char Board[32], int Piece[14], int Color);
 };
 
-CLR  GetColor(FIN);    // ºâ¥X´Ñ¤lªºÃC¦â (0: ¬õ¤è, 1: ¶Â¤è, -1:m¤£¬O)
+CLR  GetColor(FIN);    // ºâ¥X´Ñ¤lªºÃC¦â (0: ¬õ¤è, 1: ¶Â¤è, -1:m¤£¬O(¥i¯à¬O empty))
 LVL  GetLevel(FIN);    // ºâ¥X´Ñ¤lªº¶¥¯Å
 bool ChkEats(FIN,FIN); // §PÂ_²Ä¤@­Ó´Ñ¤l¯à§_¦Y²Ä¤G­Ó´Ñ¤l
 void Output (MOV);     // ±Nµª®×¶Çµ¹ GUI
+
+
 
 #endif

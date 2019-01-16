@@ -11,17 +11,23 @@
 #include<cstdio>
 #include<cstdlib>
 #include<cstring>
+#include<iostream>
 #include"anqi.hh"
+
 #ifdef _WINDOWS
 #include<windows.h>
 #endif
 
+ULL BOARD::s[16][32];
+ULL BOARD::color[3];
+mt19937_64 BOARD::gen(random_device{}());
+
 static const char *tbl="KGMRNCPkgmrncpX-";
 
 static const char *nam[16]={
-	"��","�K","��","��","�X","��","�L",
-	"�N","�h","�H","��","��","��","��",
-	"��","�@"
+	"帥","仕","相","硨","傌","炮","兵",
+	"將","士","象","車","馬","砲","卒",
+	"Ｏ","　"
 };
 
 static const POS ADJ[32][4]={
@@ -35,19 +41,20 @@ static const POS ADJ[32][4]={
 	{29,24,-1,-1},{30,25,28,-1},{31,26,29,-1},{-1,27,30,-1}
 };
 
-CLR GetColor(FIN f) {
+// 如果是 FIN_X 或 FIN_E 都會是 -1
+CLR GetColor(const FIN f) {
 	return f<FIN_X?f/7:-1;
 }
 
-LVL GetLevel(FIN f) {
+LVL GetLevel(const FIN f) {
 	assert(f<FIN_X);
 	return LVL(f%7);
 }
 
 bool ChkEats(FIN fa,FIN fb) {
-	if(fa>=FIN_X)return false;
-	if(fb==FIN_X)return false;
-	if(fb==FIN_E)return true ;
+	if(fa>=FIN_X)return false; // 如果 fa 是 FIN_X 或 FIN_E, 就直接不能走
+	if(fb==FIN_X)return false; // 不考慮吃暗子的情形
+	if(fb==FIN_E)return true ; // 如果這格是空的, 那就可以走
 	if(GetColor(fb)==GetColor(fa))return false;
 
 	const LVL la=GetLevel(fa);
@@ -80,12 +87,16 @@ void Output(MOV m) {
 	}
 	fclose(fp);
 }
-
+// 根本沒用到的函數
 void BOARD::NewGame() {
 	static const int tbl[]={1,2,2,2,2,2,5};
 	who=-1;
 	for(POS p=0;p<32;p++)fin[p]=FIN_X;
-	for(int i=0;i<14;i++)cnt[i]=tbl[GetLevel(FIN(i))];
+	this->sumCnt = 0;
+	for(int i=0;i<14;i++){
+		cnt[i]=tbl[GetLevel(FIN(i))];
+		this->sumCnt += this->cnt[i];
+	}
 }
 
 static FIN find(char c) {
@@ -133,31 +144,44 @@ static POS mkpos(int x,int y) {
 // }
 
 void BOARD::Init(char Board[32], int Piece[14], int Color) {
-    for (int i = 0 ; i < 14; ++i) {
-	cnt[i] = Piece[i];
+	this->sumCnt = 0;
+	this->hashKey = 0ULL;
+    for (int i = 0; i < 14; ++i) {
+		this->cnt[i] = Piece[i];
+		sumCnt += this->cnt[i];
+		cerr << "[*] sumCnt: " << sumCnt << "\n";
     }
+	// 把隨機值設好
+	BOARD::initRandom(); 
+	// 輸入 board from protocol
     for (int i = 0 ; i < 32; ++i) {
 		int p = (7-i/4)*4+i%4;
-	switch(Board[i]) {
-	    case '-': fin[p] = FIN_E;break;
-	    case 'K': fin[p] = FIN_K;cnt[FIN_K]--;break;
-	    case 'G': fin[p] = FIN_G;cnt[FIN_G]--;break;
-	    case 'M': fin[p] = FIN_M;cnt[FIN_M]--;break;
-	    case 'R': fin[p] = FIN_R;cnt[FIN_R]--;break;
-	    case 'N': fin[p] = FIN_N;cnt[FIN_N]--;break;
-	    case 'C': fin[p] = FIN_C;cnt[FIN_C]--;break;
-	    case 'P': fin[p] = FIN_P;cnt[FIN_P]--;break;
-	    case 'X': fin[p] = FIN_X;break;
-	    case 'k': fin[p] = FIN_k;cnt[FIN_k]--;break;
-	    case 'g': fin[p] = FIN_g;cnt[FIN_g]--;break;
-	    case 'm': fin[p] = FIN_m;cnt[FIN_m]--;break;
-	    case 'r': fin[p] = FIN_r;cnt[FIN_r]--;break;
-	    case 'n': fin[p] = FIN_n;cnt[FIN_n]--;break;
-	    case 'c': fin[p] = FIN_c;cnt[FIN_c]--;break;
-	    case 'p': fin[p] = FIN_p;cnt[FIN_p]--;break;
-	}
+		// 
+		switch(Board[i]) {
+			case '-': fin[p] = FIN_E;break;
+			case 'K': fin[p] = FIN_K;cnt[FIN_K]--;sumCnt--;break;
+			case 'G': fin[p] = FIN_G;cnt[FIN_G]--;sumCnt--;break;
+			case 'M': fin[p] = FIN_M;cnt[FIN_M]--;sumCnt--;break;
+			case 'R': fin[p] = FIN_R;cnt[FIN_R]--;sumCnt--;break;
+			case 'N': fin[p] = FIN_N;cnt[FIN_N]--;sumCnt--;break;
+			case 'C': fin[p] = FIN_C;cnt[FIN_C]--;sumCnt--;break;
+			case 'P': fin[p] = FIN_P;cnt[FIN_P]--;sumCnt--;break;
+			case 'X': fin[p] = FIN_X;break;
+			case 'k': fin[p] = FIN_k;cnt[FIN_k]--;sumCnt--;break;
+			case 'g': fin[p] = FIN_g;cnt[FIN_g]--;sumCnt--;break;
+			case 'm': fin[p] = FIN_m;cnt[FIN_m]--;sumCnt--;break;
+			case 'r': fin[p] = FIN_r;cnt[FIN_r]--;sumCnt--;break;
+			case 'n': fin[p] = FIN_n;cnt[FIN_n]--;sumCnt--;break;
+			case 'c': fin[p] = FIN_c;cnt[FIN_c]--;sumCnt--;break;
+			case 'p': fin[p] = FIN_p;cnt[FIN_p]--;sumCnt--;break;
+		}
+		assert(tbl[(int)fin[p]] == Board[i]);
+		// update hashKey
+		this->hashKey ^= this->s[fin[p]][p]; //把每個子的 hash 值 xor 進去
     }
     who = Color;
+	// WARNING: 我們在這裡先不把 turn 的資訊加進去, 之後 DoMove 會做
+	assert(this->sumCnt >= 0); // 未翻的子不可以小於 0
 }
 
 int BOARD::LoadGame(const char *fn) {
@@ -226,25 +250,25 @@ void BOARD::Display() const {
 #ifdef _WINDOWS
 			SetConsoleTextAttribute(hErr,7);
 #endif
-			fputs("  ���� ",stderr);
+			fputs("  輪到 ",stderr);
 			if(who==0) {
 #ifdef _WINDOWS
 				SetConsoleTextAttribute(hErr,12);
 #endif
-				fputs("����",stderr);
+				fputs("紅方",stderr);
 			} else if(who==1) {
 #ifdef _WINDOWS
 				SetConsoleTextAttribute(hErr,10);
 #endif
-				fputs("�¤�",stderr);
+				fputs("黑方",stderr);
 			} else {
-				fputs("�H�H",stderr);
+				fputs("？？",stderr);
 			}
 		} else if(i==1) {
 #ifdef _WINDOWS
 			SetConsoleTextAttribute(hErr,7);
 #endif
-			fputs("  �|��½�X�G",stderr);
+			fputs("  尚未翻出：",stderr);
 		} else if(i==2) {
 #ifdef _WINDOWS
 			SetConsoleTextAttribute(hErr,10);
@@ -260,6 +284,7 @@ void BOARD::Display() const {
 }
 
 int BOARD::MoveGen(MOVLST &lst) const {
+	// TODO: 要先從離敵人進的子開始搜!!!!!
 	if(who==-1)return false;
 	lst.num=0;
 	for(POS p=0;p<32;p++) {
@@ -291,19 +316,66 @@ int BOARD::MoveGen(MOVLST &lst) const {
 bool BOARD::ChkLose() const {
 	if(who==-1)return false;
 
-	bool fDark=false;
+	bool fDark=false; //是否還有沒有翻開的子
 	for(int i=0;i<14;i++) {
 		if(cnt[i]==0)continue;
-		if(GetColor(FIN(i))==who)return false;
+		if(GetColor(FIN(i))==who)return false; // 如果有找到自己的棋子，就還沒輸
 		fDark=true;
 	}
 
-	bool fLive=false;
+	bool fLive=false; // 是否還有活著的子
 	for(POS p=0;p<32;p++)if(GetColor(fin[p])==who){fLive=true;break;}
 	if(!fLive)return true;
 
 	MOVLST lst;
 	return !fDark&&MoveGen(lst)==0;
+}
+
+CLR BOARD::getWinner() const{
+	if(who == -1) return -1; // 根本還沒開局翻棋
+	bool redfDark = false, blackfDark = false; // whether red/black has dark chess
+	CLR tmpClr;
+	// * 檢查14種兵種沒翻的棋
+	for(int i = 0; i < 14; i++){
+		// 如果這個棋子已經沒有了, 就繼續往下一個兵種找找看
+		if(this->cnt[i] == 0) continue;
+		tmpClr = GetColor(FIN(i));
+		// if red still contain a dark chess
+		if(tmpClr == 0){
+			redfDark = true; // 還有紅色棋
+		}else if(tmpClr == 1){
+			blackfDark = true; // 還有黑色棋
+		}else continue;
+		// 如果兩個棋都還有的話，就可以跳掉了, 其他情形我們還不能確定
+		if(redfDark && blackfDark){
+			return -1;
+		}
+	}
+	bool redLive = false, blackLive = false;
+	// * 檢查還活著的棋
+	for(POS p = 0; p < 32; p++){
+		tmpClr = GetColor(this->fin[p]);
+		if(tmpClr == 0){
+			redLive = true;
+		}else if(tmpClr == 1){
+			blackLive = true;
+		}else continue;
+		// 如果檯面上兩方的棋分別都存在, 就確定沒有贏家了
+		if(redLive && blackLive){
+			return -1; // 還沒有贏家
+		}
+	}
+	// 把蓋著的棋和開著的棋合起來一起看
+	redLive = redfDark || redLive; //紅色活著
+	blackLive = blackfDark || blackLive; // 黑色活著
+	// 兩個都活著
+	if(redLive && blackLive){ 
+		return -1;
+	}else if(redLive){
+		return 0; // 紅贏
+	}else{
+		return 1; // 黑贏
+	}
 }
 
 bool BOARD::ChkValid(MOV m) const {
@@ -320,21 +392,25 @@ bool BOARD::ChkValid(MOV m) const {
 }
 
 void BOARD::Flip(POS p,FIN f) {
-	// FIXME: �p�G f �O��½���A, �h�ڭ̴N��½�@�Ӱ��˥L�O���ӴѤl
+	// FIXME: 如果 f 是未翻狀態, 則我們就亂翻一個假裝他是那個棋子
 	if(f==FIN_X) {
+		assert(false); // deprecated
 		int i,sum=0;
 		for(i=0;i<14;i++)    sum+=cnt[i];
 		sum=rand()%sum; // random 
 		for(i=0;i<14;i++)if((sum-=cnt[i])<0)break;
 		f=FIN(i);
 	}
-	fin[p]=f;
-	cnt[f]--;
-	if(who==-1)who=GetColor(f);
+	fin[p]=f; // 從 Judge 那邊拿來的翻子 或 自己亂掰的翻子
+	cnt[f]--; assert(cnt[f] >= 0);// 減少該子翻出來的數量
+	sumCnt--; assert(sumCnt >= 0);// 減少未翻出子的數量
+	if(who==-1) who=GetColor(f);
 	who^=1;
 }
 
 void BOARD::Move(MOV m) {
+	// deprecated
+	assert(false);
 	if(m.ed!=m.st) {
 		fin[m.ed]=fin[m.st];
 		fin[m.st]=FIN_E;
@@ -344,49 +420,105 @@ void BOARD::Move(MOV m) {
 		Flip(m.st);
 	}
 }
-
+// f 會是實際翻出來的子(從 protocol 傳來的)
 void BOARD::DoMove(MOV m, FIN f) {
-	// ���]�U�X ���B�ΦY�l
+	static bool isFirst = true; // 第一次的時候要把 who 的資訊 xor 到 hashKey 裡面
+	FIN fromF=fin[m.st], toF=fin[m.ed];
+	if(m.st == m.ed){
+		assert(fromF == FIN_X);
+		toF = f; // 如果是翻棋步, 那 toF 就會是翻出來的棋
+	}
+	// update hash key (因為 who 會在 main.cc 中先設好)
+	// 如果是第一次被 run 到, 在上面先補上自己 color 的 hash, 如果不是的話 自己的 color hash 已經在裡面了
+	if(isFirst){
+		assert(this->who != -1);
+		this->hashKey ^= BOARD::color[this->who];
+		isFirst = false; // 關掉
+	}
+	// 更新 hashkey
+	this->hashKey ^= BOARD::hashDoMove(m, fromF, toF);
+	// 假設下出 走步或吃子
     if (m.ed!=m.st) {
-	fin[m.ed]=fin[m.st];
-	fin[m.st]=FIN_E;
-	who^=1;
+		fin[m.ed]=fin[m.st];
+		fin[m.st]=FIN_E;
+		who^=1;
     }
-	// ���]�U�X ½�l
+	// 假設下出 翻子
     else {
-	Flip(m.st, f);
+		Flip(m.st, f);
     }
+}
+// return updating hash ull
+ULL BOARD::hashDoMove(MOV m, FIN fromF, FIN toF){
+    // 動作一律都是: 清乾淨原本的 -> 把新東西放上去
+    assert(m.st != -1 && m.ed != -1);
+    ULL updateHash = 0ULL;
+    // * 換 turn
+    updateHash ^= color[0] ^ color[1];
+    if(m.st == m.ed){
+		assert(fromF == FIN_X);
+		assert((int)toF < 14);
+        // * A flip
+        // 清掉 暗棋 放上 新棋
+        updateHash ^= s[FIN_X][m.st] ^ s[toF][m.ed]; 
+    }else{
+		assert(fromF != FIN_X && toF != FIN_X); // 移動子不可為 FIN_X, 目標子一定是空的或是可以吃的子(不會是暗子)
+        // * change place
+        // 把原本的棋子先清掉換成空白, 再把原本的棋子放到新的地方去
+        updateHash ^= (s[fromF][m.st] ^ s[FIN_E][m.st]) ^ (s[toF][m.ed] ^ s[fromF][m.ed]); 
+    }
+    return updateHash;
+}
+bool BOARD::initRandom(){
+    // Random a 64 bit number
+    uniform_int_distribution<ULL> U(0, (0ULL - 1ULL));
+    
+    for(int i = 0; i < 16; i++){
+        for(int j = 0; j < 32; j++){
+            s[i][j] = U(BOARD::gen);
+        }
+    }
+    color[0] = U(BOARD::gen); // red
+    color[1] = U(BOARD::gen); // black
+    color[2] = U(BOARD::gen); // 都不是
 }
 
 
 int BOARD::MoveGenWithFlip(MOVLST &lst) const{
-	// TODO: Sort move ordering
-
+	// TODO: Sort move ordering (先考慮 level 大的棋子)
 	lst.num=0;
+	// 先考慮中間的子
+
+	// 掃過 32 個位置
 	for(POS p=0;p<32;p++) {
 		const FIN pf=fin[p];
 		CLR finColor = GetColor(pf);
-		// If 'pf' is -1
-		if(finColor == -1){
-			lst.mov[lst.num++] = MOV(p, p); // flip move
+		// If 'pf' is FIN_X
+		if(pf == FIN_X){
+			lst.mov[lst.num++] = MOV(p, p); // flip move 翻子步
 		}
-		// If 'pf' is now turn's color
+		// 只檢查自己的棋, 如果不是自己的棋, 那就不會列入 move list
 		else if(finColor == this->who){
-			const LVL pl=GetLevel(pf);
+			const LVL pl=GetLevel(pf); // 判斷棋種
+			// 測試 4 個方向能不能走
 			for(int z=0;z<4;z++) {
-				const POS q=ADJ[p][z];
-				if(q==-1)continue;
-				const FIN qf=fin[q];
-				if(pl!=LVL_C){if(!ChkEats(pf,qf))continue;}
-				else if(qf!=FIN_E)continue;
+				const POS q=ADJ[p][z]; 
+				if(q==-1)continue; // 如果某個方向是違法的, 就跳過
+				const FIN qf=fin[q]; // 檢查你要走到的地方現在是什麼棋子
+				if(pl!=LVL_C){if(!ChkEats(pf,qf))continue;} // 如果不是砲才檢查, 如果發現不能吃(或移動), 就跳過
+				else if(qf!=FIN_E)continue; // 如果是砲的話, 那就只有 FIN_E 的時候才能走
 				lst.mov[lst.num++]=MOV(p,q);
 			}
+			// 不是砲就跳過
 			if(pl!=LVL_C)continue;
+			// 特別檢查砲的吃子
 			for(int z=0;z<4;z++) {
-				int c=0;
+				int c=0; // 記錄這個方向現在的子數
+				// q 設在自己這個點, 往 z 方向掃過去看看有沒有可以吃個子
 				for(POS q=p;(q=ADJ[q][z])!=-1;) {
 					const FIN qf=fin[q];
-					if(qf==FIN_E||++c!=2)continue;
+					if(qf==FIN_E||++c!=2)continue; 
+					// 如果不是 暗子 且 不是自己的子, 就可以設為移動步
 					if(qf!=FIN_X&&GetColor(qf)!=who)lst.mov[lst.num++]=MOV(p,q);
 					break;
 				}
