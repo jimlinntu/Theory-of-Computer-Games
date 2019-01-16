@@ -14,7 +14,7 @@ TranspositionTable::TranspositionTable(){
     // 放入 32 bit 全為 1 的數字(之後取 negation 比較方便)
     fill(this->head, this->head+capacity, (0U-1U));
     cerr << "head[0]" << bitset<32>(this->head[0]) << "\n";
-    assert(this->head[0] == 4294967295U && this->head[0] == 4294967295U);
+    assert(this->head[0] == 4294967295U && this->head[capacity-1] == 4294967295U);
 }
 TranspositionTable::~TranspositionTable(){
     delete[] this->head;
@@ -45,7 +45,6 @@ Record TranspositionTable::getVal(ULL k){
     assert(((k ^ static_cast<ULL>(h)) & ((1ULL << 28)-1ULL)) == 0ULL);
     // 如果 i 是 32 bit 全 1, negation 完就會是 0
     for(unsigned int i = this->head[h]; ~i; i = this->next[i]){
-        
         // 如果 key 值有對到
         if(key[i] == k){
             // 回傳他們的 address

@@ -12,6 +12,8 @@
 #include<cstdlib>
 #include<cstring>
 #include<iostream>
+#include<iterator>
+#include<algorithm>
 #include"anqi.hh"
 
 #ifdef _WINDOWS
@@ -310,6 +312,8 @@ int BOARD::MoveGen(MOVLST &lst) const {
 			}
 		}
 	}
+	// 隨機大法, 以避免吃不到子
+	if(lst.num > 0) shuffle(begin(lst.mov), begin(lst.mov) + lst.num, BOARD::gen);
 	return lst.num;
 }
 
@@ -425,6 +429,8 @@ void BOARD::DoMove(MOV m, FIN f) {
 	static bool isFirst = true; // 第一次的時候要把 who 的資訊 xor 到 hashKey 裡面
 	FIN fromF=fin[m.st], toF=fin[m.ed];
 	if(m.st == m.ed){
+		assert(m.st != -1);
+		//FIXME: ASSERTION Fail???
 		assert(fromF == FIN_X);
 		toF = f; // 如果是翻棋步, 那 toF 就會是翻出來的棋
 	}

@@ -38,9 +38,9 @@ public:
 	static SCORE vMax;
 	static SCORE vMin;
 	static SCORE finScore[7]; // 0: ´”±N, ..., 6: ßL®Ú
-	int cutOffDepth = 7; // search up to (depth == 7)
+	int cutOffDepth = 5; // search up to (depth == 7)
 	int timeOut; // in milliseconds
-	timeval start, stop;
+	timeval start;
 	TranspositionTable transTable[2]; // 0: myself, 1: opponent 
 	TranspositionTable visitedTable; // ¿À¨d¶≥®S¶≥§T¥`¿Ù™∫ table
 	fstream logger;
@@ -82,12 +82,12 @@ public:
 		cerr << "[*] Start negaScout" << "\n";
 		SCORE negaScore= this->negaScout(B, SearchEngine::vMin, SearchEngine::vMax, BestMove, 0);
 		cerr << "Negascore: " << negaScore << "\n";
+		cerr << "[*] End negaScout" << "\n";
 		
 		// ¶p™G negaScout ∑j§£•X®B®”
 		if(BestMove.st == -1 || BestMove.ed == -1){
 			assert(randomFlip(B, BestMove));
 		}
-		cerr << "[*] End negaScout" << "\n";
 		
 		if(BestMove.st == BestMove.ed){
 			// ¬Ω¥—§l§£∑|≥y¶® 3 ¥`¿Ù(¶]¨∞¬Ω•X®”§ß´·§@©w®SøÏ™k©π¶^®´)
@@ -127,7 +127,6 @@ public:
 			
 		}
 		
-
 		return BestMove;
 	}
 
@@ -154,13 +153,15 @@ public:
 	}
 	
 	bool randomFlip(const BOARD &B, MOV &BestMove){
+		cerr << "randomFlip\n";
 		// * §£≠n¬Ω®ÏßO§H™∫§lÆ«√‰
-		// * ¶p™Gºƒ§H¬Ω®ÏØ•©Œ´”, ™Ω±µ¬Ω•LÆ«√‰∑F±º•L
+		// * ∞£§F¶p™Gºƒ§H¬Ω®ÏØ•©Œ´”, ™Ω±µ¬Ω•LÆ«√‰∑F±º•L
 		if(B.sumCnt==0) return false;
 		vector<MOV> movList;
-		CLR oppColor = (B.who^1);
+		CLR oppColor = (B.who^1); // ¶p™G B.who == -1, B.who^1 ∑|≈‹¶® -2, §£ºvêÒ
 		
 		for(POS p = 0; p < 32; p++){
+			cerr << "p: "<< p << "\n";
 			// ¶p™G≥o≠”§l¨O∑t§l
 			bool isDangerous = false;
 			if(B.fin[p] == FIN_X){
@@ -181,8 +182,10 @@ public:
 				if(!isDangerous) movList.push_back(MOV(p, p));
 			}
 		}
+		assert(movList.size() > 0);
 		uniform_int_distribution<int> U(0, movList.size()-1);
 		BestMove = movList[U(gen)];
+		cerr << "randflip end\n";
 		return true;
 	}
 	void randomMove(const BOARD &B, MOV &BestMove, const MOV &prohitbitMove){
@@ -225,8 +228,10 @@ public:
 		// * If win (winner is not other)
 		// * depth cut off
 		// * no move can take
-		gettimeofday(&this->stop, NULL);
+		timeval stop;
+		gettimeofday(&stop, NULL);
 		const int milliElapsed = (stop.tv_sec - start.tv_sec) * 1000 + (stop.tv_usec-start.tv_usec) / 1000;
+	
 		if(milliElapsed > this->timeOut || B.getWinner() != -1 
 			|| depth == this->cutOffDepth || lst.num == 0){
 			this->logger << "[*] Scout Depth: " << depth << "\n";

@@ -1,4 +1,4 @@
-LDFLAGS=-static -s -O2 -std=c++11 -Wall
+LDFLAGS=-static -s -O2 -std=c++11 -Wall -g -rdynamic 
 .PHONY:	clean
 search.exe:	main.cc anqi.cc TranspositionTable.cc ClientSocket.cpp Protocol.cpp
 	$(CXX) $(LDFLAGS) -o $@ $^ 
