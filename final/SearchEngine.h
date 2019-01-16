@@ -6,6 +6,7 @@
 #include<limits>
 #include<fstream>
 #include<vector>
+#include<bitset>
 #include<assert.h>
 #include<time.h>
 #include<iostream>
@@ -57,9 +58,10 @@ public:
 		MOV BestMove(-1, -1);
 		// 
 		Record record = this->visitedTable.getVal(B.hashKey);
-		if(record.val != nullptr){
+		if(record.flag != nullptr){
 			// 如果之前參訪過
 			*record.flag += 1; // add visit time
+			cerr << "[*] Visited Board has: " << bitset<64>(B.hashKey) << "\n";
 		}else{
 			this->visitedTable.insert(B.hashKey, -1, 1, -1);
 		}
@@ -70,12 +72,12 @@ public:
 		}
 		// Pre-evaluation
 		SCORE preScore = this->Eval(B);
-		cerr << "Prescore is: " << preScore << "\n" << flush;
+		this->logger << "Prescore is: " << preScore << "\n" << flush;
 		// NegaMax 
 		// * 越多暗子的時候花時間少一點
 		// this->timeOut = remain_milliseconds * ((33 - B.sumCnt) / 32) - 1;
 		this->timeOut = 5000;
-		cerr << "[*] Timeout of this play is: " << this->timeOut / 1000 << " seconds \n";
+		
 		gettimeofday(&this->start, NULL);
 		cerr << "[*] Start negaScout" << "\n";
 		SCORE negaScore= this->negaScout(B, SearchEngine::vMin, SearchEngine::vMax, BestMove, 0);
@@ -86,15 +88,17 @@ public:
 			assert(randomFlip(B, BestMove));
 		}
 		cerr << "[*] End negaScout" << "\n";
-		cerr << "BestMove: " << BestMove.st << " " << BestMove.ed << "\n";
 		
 		// 翻棋子不會造成 3 循環(因為翻出來之後一定沒辦法往回走)
 		if(BestMove.st == BestMove.ed){
-			return BestMove;
-		}else{
+
+		}
+		else{
+			cerr << "[*] Checking Repetition......\n";
 			// 如果不是翻棋，要考慮看看有沒有可能造成 3 循環
 			BOARD nextB = B;
 			nextB.DoMove(BestMove, FIN(15));
+			cerr << "[*] nextB.hashKey: " << bitset<64>(nextB.hashKey) << "\n";
 			record = this->visitedTable.getVal(nextB.hashKey);
 			// 如果 flag 已經是 2 了, 那就亂走
 			if(record.flag != nullptr) cerr << "[*] This Board has visited: " << *record.flag << "\n";
@@ -105,12 +109,26 @@ public:
 				}else{
 					MOV prohibitMove = BestMove;
 					this->randomMove(B, BestMove, prohibitMove);
+					assert(BestMove.st != BestMove.ed);
+					
+				}	
+			}			
+			// 如果最後選出來是走吃步
+			if(BestMove.st != BestMove.ed){
+				nextB = B;
+				nextB.DoMove(BestMove, FIN(15));
+				record = this->visitedTable.getVal(nextB.hashKey);
+				if(record.flag != nullptr){
+					*record.flag += 1;
+				}else{
+					this->visitedTable.insert(nextB.hashKey, -1, 1, -1);
 				}
-				return BestMove;
-			}else{
-				return BestMove;
 			}
+			
 		}
+		
+
+		return BestMove;
 	}
 
 	bool specialBoardCondition(const BOARD &B, MOV &BestMove){
@@ -326,6 +344,7 @@ public:
 		}
 		// MIN node: 越高代表對 max node 越不利
 		// Max node: 越高代表對 min node 越不利
+		// TODO: 距離也要算一點分數！！！
 		return cnt[B.who]-cnt[B.who^1];
 	}
 

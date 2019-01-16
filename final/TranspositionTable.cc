@@ -49,10 +49,12 @@ Record TranspositionTable::getVal(ULL k){
     assert(((k ^ static_cast<ULL>(h)) & ((1ULL << 28)-1ULL)) == 0ULL);
     // 如果 i 是 32 bit 全 1, negation 完就會是 0
     for(unsigned int i = this->head[h]; ~i; i = this->next[i]){
-        cerr << "[*] i: " << bitset<32>(i) << "\n";
+        cerr << "[*]      i: " << bitset<64>(i) << "\n";
+        cerr << "[*] key[i]:" << bitset<64>(key[i]) << "\n";
         // 如果 key 值有對到
         if(key[i] == k){
             // 回傳他們的 address
+            cerr << "[*] Hit: " << this->val[i] << " " << this->flag[i] << " " << this->depth[i] << "\n";
             return Record(&(this->val[i]), &(this->flag[i]), &(this->depth[i]));
         }
     }
