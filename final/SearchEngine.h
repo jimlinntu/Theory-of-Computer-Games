@@ -38,7 +38,7 @@ public:
 	static SCORE vMax;
 	static SCORE vMin;
 	static SCORE finScore[7]; // 0: 帥將, ..., 6: 兵卒
-	int cutOffDepth = 8; // search up to (depth == 7)
+	int cutOffDepth = -1; // search up to (depth == 7)
 	int timeOut; // in milliseconds
 	timeval start;
 	TranspositionTable transTable[2]; // 0: red, 1: black
@@ -80,7 +80,18 @@ public:
 		
 		gettimeofday(&this->start, NULL);
 		cerr << "[*] Start negaScout" << "\n";
-		SCORE negaScore= this->negaScout(B, SearchEngine::vMin, SearchEngine::vMax, BestMove, 0);
+		// ID NegaScout
+		SCORE negaScore;
+		for(int i = 0; i < 12; i++){
+			this->cutOffDepth = i;
+			timeval stop;
+			gettimeofday(&stop, NULL);
+			const int milliElapsed = (stop.tv_sec - start.tv_sec) * 1000 + (stop.tv_usec-start.tv_usec) / 1000;
+			negaScore = this->negaScout(B, SearchEngine::vMin, SearchEngine::vMax, BestMove, 0);
+			if(milliElapsed > this->timeOut){
+				break;
+			}
+		}
 		cerr << "Negascore: " << negaScore << "\n";
 		cerr << "[*] End negaScout" << "\n";
 		
@@ -326,22 +337,22 @@ public:
 				}
 				
 				if(m >= beta){
-					if(B.who != -1){
-						if(record.val != nullptr){
-							if((this->cutOffDepth - depth) >  *record.depth){
-								*record.val = m;
-								*record.flag = 1;
-								*record.depth = this->cutOffDepth - depth;
-							}
-						} // lower bound
-						else this->transTable[B.who].insert(B.hashKey, m, 1, this->cutOffDepth - depth);
-					}
+					if(record.val != nullptr){
+						// 所剩深度比較深時
+						if((this->cutOffDepth - depth) >  *record.depth){
+							*record.val = m;
+							*record.flag = 1; // lower bound
+							*record.depth = this->cutOffDepth - depth;
+						}
+					} // lower bound
+					else this->transTable[B.who].insert(B.hashKey, m, 1, this->cutOffDepth - depth);
+					
 					return m;
 				}
 			}
 			n = MAX(alpha, m) + 1; // null window
 		}
-
+		// m in [alpha, beta]
 		if(m > alpha){
 			// element 存在時
 			if(record.val != nullptr){
