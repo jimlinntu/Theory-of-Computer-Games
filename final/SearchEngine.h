@@ -77,14 +77,14 @@ public:
 		// NegaMax 
 		// * ¶V¦h·t¤lªº®É­Ôªá®É¶¡¤Ö¤@ÂI
 		// this->timeOut = remain_milliseconds * ((33 - B.sumCnt) / 32) - 1;
-		this->timeOut = 5000;
+		this->timeOut = MIN(5000 , remain_milliseconds / 2);
 		
 		gettimeofday(&this->start, NULL);
 		cerr << "[*] Start negaScout" << "\n";
 		// ID NegaScout
 		SCORE negaScore;
 		// ±q¤T¼h¶}©l·j
-		for(int i = 3; i < 12; i++){
+		for(int i = 5; i < 8; i++){
 			this->cutOffDepth = i;
 			timeval stop;
 			gettimeofday(&stop, NULL);
@@ -94,6 +94,14 @@ public:
 				break;
 			}
 		}
+		// ¦pªG·j¤F¦¨ÁZÁÙ¤ñ¸û®t, °®¯Ü¶ÃÂ½
+		if(negaScore < preScore){
+			// ¦pªGÁÙ¦³¤l¥i¥HÂ½´NÂ½, ¨S¦³ªº¸Ü´NÁÙ¬O¥Î BestMove ¨Ó¨«
+			if(B.sumCnt > 0){
+				assert(randomFlip(B, BestMove));
+			}
+		}
+		cerr << "NegaScore - preScore: " << negaScore - preScore << "\n";
 		cerr << "Negascore: " << negaScore << "\n";
 		cerr << "[*] End negaScout" << "\n";
 		
@@ -125,24 +133,26 @@ public:
 					assert(this->randomFlip(nextB, BestMove)); // ¤@©w·|¥i¥HÂ½
 				}else{
 					MOV prohibitMove = BestMove;
-					this->randomMove(nextB, BestMove, prohibitMove); // 
+					this->randomMove(nextB, BestMove, prohibitMove); // ¶Ã¨«, ¦ý¤£¯à¨«¨ì prohibit move
 					assert(BestMove.st != BestMove.ed);
 				}	
 			}
-			// ¦pªG³Ì«á¿ï¥X¨Ó¬O¨«¦Y¨B, ´N°O¤@¤U°Ñ³X¹L
+			// ¦pªG³Ì«á¿ï¥X¨Ó¬O¨«¦Y¨B, ´N°O¦í°Ñ³X¼Æ¦r
 			if(BestMove.st != BestMove.ed){
 				nextB = B;
 				nextB.DoMove(BestMove, FIN(15));
 				record = this->visitedTable.getVal(nextB.hashKey);
 				if(record.flag != nullptr){
 					*record.flag += 1;
+					assert(*record.flag < 32767); // À³¸Ó¤£¯à overflow
 				}else{
 					this->visitedTable.insert(nextB.hashKey, -1, 1, -1);
 				}
 			}
 			
 		}
-		
+		assert(BestMove.st != -1 && BestMove.ed != -1);
+		cerr << "[*] BestMove I choose: " << BestMove.st << " " << BestMove.ed << "\n";
 		return BestMove;
 	}
 
@@ -160,7 +170,7 @@ public:
 			return true;
 		}
 		// * ¦pªG¹ï¤è¯¥¤w¸g¥X²{, ¦Ó¥B
-		
+
 		// * ¦pªG«Ó¤w¸g¥X²{, ¦Ó¥B§Úªº§L¨òmÁÙ¦³¤­­Óªº®É­Ô
 		
 		// * Âi­±¤W¥Ø«em¬O§O¤Hªº¤lªº®É­Ô
@@ -185,8 +195,10 @@ public:
 				//ÀË¬d¥|­±¤K¤è¦³¨S¦³¼Ä¤Hªº¤l
 				for(int dir=0; dir < 4; dir++){
 					POS q = ADJ[p][dir];
-					// ¦pªG¬O¼Ä¤èªº¤l, ºÉ¶q¤£­nÂ½®ÇÃä(°£¤F¯¥©Î«Ó)
-					if(GetColor(B.fin[q]) == oppColor){
+					// ¦pªG¬O¦X²zªº¨B
+					if(q == -1) continue;
+					// ¦pªG¬O¼Ä¤èªº¤l, ºÉ¶q¤£­nÂ½®ÇÃä(°£¤F¯¥©Î«Ó), ¦pªG¬O unknown ÃC¦â¥Nªím¥i¥HÂ½
+					if(GetColor(B.fin[q]) == oppColor && B.who != -1){
 						isDangerous = true;
 						// ¦pªG¬O¯¥ ©Î «Ó, mª½±µÂ½¥L¹j¾À
 						if(GetLevel(B.fin[q]) == LVL_C && GetLevel(B.fin[q]) == LVL_K){
@@ -219,7 +231,7 @@ public:
 		for(POS p = 0; p < 32; p++){
 			FIN pf = B.fin[p];
 			// ¦Û¤vªº´Ñ¤~Ä~Äò
-			if(GetColor(pf) != B.who) continue;
+			if(GetColor(pf) != B.who && B.who != -1) continue;
 
 			for(int dir = 0; dir < 4; dir++){
 				POS q = ADJ[p][dir];
@@ -241,11 +253,13 @@ public:
 		if(movList.size() == 0){
 			// Let it go ¥u¦nÅý¥L©M§½
 			BestMove = prohitbitMove;
+			assert(prohitbitMove.st != -1 && prohitbitMove.ed != -1);
 		}else{
 			// random sample one move
 			uniform_int_distribution<int> U(0, movList.size()-1);
 			BestMove = movList[U(gen)];
 		}
+		cerr << "[*] BestMove: " << BestMove.st << " " << BestMove.ed << "\n";
 		cerr << "[!] Random move end!" << "\n";
 	}
 
@@ -253,6 +267,7 @@ public:
 	SCORE negaScout(const BOARD &B, SCORE alpha, SCORE beta, MOV &BestMove, const int depth){
 		// ÀË¬d transposition table
 		Record record; // ¦s retrieve ¥X¨Óªºµ²ªG
+		// ¦pªG B.who ÁÙ¨S¨M©w´N¤£°µ
 		if(B.who != -1){
 			record = this->transTable[B.who].getVal(B.hashKey);
 			if(record.val != nullptr){

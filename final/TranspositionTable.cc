@@ -26,7 +26,6 @@ TranspositionTable::~TranspositionTable(){
 }
     //
 void TranspositionTable::insert(ULL k, double v, short int f, int d){
-    cerr << "[*] insert start \n";
     Size_ h = static_cast<Size_>(k & ((1ULL << 28) - 1ULL)); // 取後面 28 bit 並轉成 unsigned int
     assert(((k ^ static_cast<ULL>(h)) & ((1ULL << 28)-1ULL)) == 0ULL); // 最後那一串 xor 完應該要是 0 
     next[this->size] = head[h]; // 先把 next 指到原本 head 指到的地方
@@ -35,7 +34,6 @@ void TranspositionTable::insert(ULL k, double v, short int f, int d){
     val[this->size] = v;
     flag[this->size] = f;
     depth[this->size] = d;
-    
     this->size++;
     assert(this->size <= TranspositionTable::capacity);
 }
@@ -48,7 +46,7 @@ Record TranspositionTable::getVal(ULL k){
         // 如果 key 值有對到
         if(key[i] == k){
             // 回傳他們的 address
-            cerr << "[*] Hit: " << this->val[i] << " " << this->flag[i] << " " << this->depth[i] << "\n";
+            // cerr << "[*] Hit: " << this->val[i] << " " << this->flag[i] << " " << this->depth[i] << "\n";
             return Record(&(this->val[i]), &(this->flag[i]), &(this->depth[i]));
         }
     }
