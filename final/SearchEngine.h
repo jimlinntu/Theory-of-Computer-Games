@@ -70,6 +70,7 @@ public:
 		if(this->specialBoardCondition(B, BestMove)){
 			return BestMove;
 		}
+		assert(B.who != -1); // 應該會被 special condition 擋掉
 		// Pre-evaluation
 		SCORE preScore = this->Eval(B);
 		this->logger << "Prescore is: " << preScore << "\n" << flush;
@@ -82,7 +83,8 @@ public:
 		cerr << "[*] Start negaScout" << "\n";
 		// ID NegaScout
 		SCORE negaScore;
-		for(int i = 0; i < 12; i++){
+		// 從三層開始搜
+		for(int i = 3; i < 12; i++){
 			this->cutOffDepth = i;
 			timeval stop;
 			gettimeofday(&stop, NULL);
@@ -95,8 +97,9 @@ public:
 		cerr << "Negascore: " << negaScore << "\n";
 		cerr << "[*] End negaScout" << "\n";
 		
-		// 如果 negaScout 搜不出步來
+		// 如果因為沒有步或是 negaScout 搜不出步來
 		if(BestMove.st == -1 || BestMove.ed == -1){
+			// 一定會有子可以翻, 因為 negaScout 一定有 movList
 			assert(randomFlip(B, BestMove));
 		}
 		
@@ -104,27 +107,28 @@ public:
 			// 翻棋子不會造成 3 循環(因為翻出來之後一定沒辦法往回走)
 			// 所以不需要紀錄曾經參訪, 因為一定不會重複盤面
 		}
+		// 如果是走子就要檢查會不會重複
 		else{
 			cerr << "[*] Checking Repetition......\n";
 			// FIXME: 會卡住？？
 			// 如果不是翻棋，要考慮看看有沒有可能造成 3 循環
 			BOARD nextB = B;
-			nextB.DoMove(BestMove, FIN(15));
+			nextB.DoMove(BestMove, FIN(15)); 
 			cerr << "[*] nextB.hashKey: " << bitset<64>(nextB.hashKey) << "\n";
 			record = this->visitedTable.getVal(nextB.hashKey);
-			// 如果 flag 已經是 2 了, 那就亂走
 			if(record.flag != nullptr) this->logger << "[*] This Board has been visited: " << *record.flag << "\n";
+			// 如果 flag 已經是 2 了, 那就亂翻或是亂走
 			if(record.flag != nullptr && (*record.flag) >= 2){
+				// 如果還有子可以翻
 				if(B.sumCnt > 0) {
 					// 翻子絕對不會造成三循環
-					this->randomFlip(B, BestMove);
+					assert(this->randomFlip(nextB, BestMove)); // 一定會可以翻
 				}else{
 					MOV prohibitMove = BestMove;
-					this->randomMove(B, BestMove, prohibitMove);
+					this->randomMove(nextB, BestMove, prohibitMove); // 
 					assert(BestMove.st != BestMove.ed);
-					
 				}	
-			}			
+			}
 			// 如果最後選出來是走吃步, 就記一下參訪過
 			if(BestMove.st != BestMove.ed){
 				nextB = B;
@@ -210,7 +214,7 @@ public:
 		return true;
 	}
 	void randomMove(const BOARD &B, MOV &BestMove, const MOV &prohitbitMove){
-		cerr << "[!] In randomMove: \n";
+		cerr << "[!] In Random Move: \n";
 		vector<MOV> movList; // population
 		for(POS p = 0; p < 32; p++){
 			FIN pf = B.fin[p];
@@ -232,6 +236,7 @@ public:
 				}
 			}
 		}
+		
 		// FIXME: I think i may happen
 		if(movList.size() == 0){
 			// Let it go 只好讓他和局
@@ -241,6 +246,7 @@ public:
 			uniform_int_distribution<int> U(0, movList.size()-1);
 			BestMove = movList[U(gen)];
 		}
+		cerr << "[!] Random move end!" << "\n";
 	}
 
 	// 仔細思考
