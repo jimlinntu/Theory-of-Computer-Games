@@ -55,15 +55,15 @@ LVL GetLevel(const FIN f) {
 	assert(f<FIN_X);
 	return LVL(f%7);
 }
-
+// (小心 Bug!!) 這個僅能判斷子能不能互吃, 不管 position
 bool ChkEats(FIN fa,FIN fb) {
 	if(fa>=FIN_X)return false; // 如果 fa 是 FIN_X 或 FIN_E, 就直接不能走
 	if(fb==FIN_X)return false; // 不考慮吃暗子的情形
-	if(fb==FIN_E)return true ; // 如果這格是空的, 那就可以走
-	if(GetColor(fb)==GetColor(fa))return false;
+	if(fb==FIN_E)return true ; // 如果這格是空的, 那就可以走(abuse ChkEats function)
+	if(GetColor(fb)==GetColor(fa))return false; // 如果是同顏色的子 則不行移動
 
 	const LVL la=GetLevel(fa);
-	if(la==LVL_C)return true ;
+	if(la==LVL_C)return true ; // 如果 a 子是炮, 則一定可以吃
 
 	const LVL lb=GetLevel(fb);
 	if(la==LVL_K)return lb!=LVL_P;

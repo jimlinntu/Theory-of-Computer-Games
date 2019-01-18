@@ -204,7 +204,7 @@ public:
 		vector<MOV> movList; // Candidates
 		for(POS p = 0; p < 32; p++){
 			FIN pf = B.fin[p];
-			// ¦Û¤vªº´Ñ¤~Ä~Äò
+			// ¦pªG¤£¬O¦Û¤vªº´Ñ, ´N¸õ¹L
 			if(GetColor(pf) != B.who) continue;
 			// ·j´M¥|­Ó¤è¦V
 			for(int dir = 0; dir < 4; dir++){
@@ -212,8 +212,29 @@ public:
 				if(q == -1) continue; // ¦pªG¬O¤£¦Xªkªº¨B´N¸õ¹L
 				FIN qf = B.fin[q];
 				// ¬O¥i¥H¨«¦Yªº¨B ¥B ¤£¥i¥H¬O³Q¸T¤îªº¨B
-				if(ChkEats(pf, qf) && !(p == prohitbitMove.st && q == prohitbitMove.ed)){
-					movList.push_back(MOV(p, q)); // ¦s¤U±q p ©¹ q ¨«ªº move
+				// ¦pªG¤£¬O¬¶¡A¥i¥Hª½±µ§PÂ_¯à¤£¯à¦Y¹j¾Àªº¤l
+				if(GetLevel(pf) != LVL_C){
+					if(ChkEats(pf, qf) && !(p == prohitbitMove.st && q == prohitbitMove.ed)){
+						movList.push_back(MOV(p, q)); // ¦s¤U±q p ©¹ q ¨«ªº move
+					}
+				}else{
+					// ÀË¬d¬¶ªº¨«¦ì
+					int countFinAlongDir = 0;
+					if(qf == FIN_E) movList.push_back(MOV(p, q)); // ¦pªG¬OªÅ¤lªº¸Ü, ´N¥i¥H¨«
+					// ©¹¤@­Óª½½u±½¹L¥h, ¦pªG qLocal ÁÙ¤£¬O -1 ¥B ¤¤¶¡ªº¤l¤´µM¤p©óµ¥©ó 1 Áû¤l¡A´N¥i¥HÄ~Äò
+					for(POS qLocal = ADJ[q][dir]; (qLocal != -1) && (countFinAlongDir <= 1) ; 
+						qLocal = ADJ[qLocal][dir]){
+						const FIN qfLocal = B.fin[qLocal];
+						// ¦pªG¤¤¶¡¹j¤@­Ó¤l ¦Ó¥B ·í«e qfLocal ¬O¹ï¤èÃC¦âªº¤l, «h¥i¥H¦Y¤l
+						if(countFinAlongDir == 1 && GetColor(qfLocal) == (B.who^1) ){
+							movList.push_back(MOV(p, qLocal));
+							this->logger << "Cannon Move: (" << p << "," << qLocal << ")\n";
+						}
+						// ¦pªG²{¦b³o­Ó¤l¬O ÃC¦â¤l©Î·t¤l, ´N­p¤J countFinAlongDir
+						if(qfLocal <= FIN_X){
+							countFinAlongDir++;
+						}
+					}
 				}
 			}
 		}
@@ -306,8 +327,8 @@ public:
 			this->logger << "[*] Elapse seconds: " << milliElapsed / 1000 << "\n";
 			return Eval(B);
 		}
-		
-		SCORE m = SearchEngine::NINF, n = beta;
+		// FIXME:´ú¸Õ¤@¤U
+		SCORE m = SearchEngine::vMin-1, n = beta;
 		SCORE t;
 		BOARD nextB;
 		for(int i = 0; i < lst.num; i++){
@@ -316,7 +337,6 @@ public:
 			// TODO:
 			if(lst.mov[i].st == lst.mov[i].ed){
 				// TODO: 
-				assert(false);
 				// Chance Search()
 				t = this->chanceSearch(B, lst.mov[i], MAX(alpha, m), beta, BestMove, depth);
 			}
@@ -390,16 +410,16 @@ public:
 		assert(B.sumCnt > 0);
 		assert(mv.st == mv.ed);
 		// 
-		double A, B_;
+		double A=0, B_=0;
 		double m=SearchEngine::vMin, M = SearchEngine::vMax;
-		double t;
+		double t=0;
 		double tmpLocalRatio;
 		double weightVSum = 0;
 		bool isfirst = true;
 		BOARD nextB;
 		// 
 		for(int i = 0; i < 14; i++){
-			// ¦pªG¨º­Ó´Ñ¤l¨S¦³¤F
+			// ¦pªG¨º­Ó´Ñ¤lm¤w¸gÂ½¶}¤F
 			if(B.cnt[i] == 0){
 				continue;
 			}
@@ -412,6 +432,7 @@ public:
 				if(!isfirst){
 					// (c / w1) * (alpha - vMax)
 					tmpLocalRatio = ((double)B.sumCnt / (double)B.cnt[i]);
+					// ·|¤£·|¦³ overflow ªº°ÝÃD¡H
 					A = tmpLocalRatio * (alpha - SearchEngine::vMax) + SearchEngine::vMax;
 					B_ = tmpLocalRatio * (beta - SearchEngine::vMin) + SearchEngine::vMin;
 					isfirst = false;
