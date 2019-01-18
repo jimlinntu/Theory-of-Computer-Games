@@ -14,6 +14,8 @@
 #include"TranspositionTable.hh"
 #define MAX(a,b) (((a)>(b))?(a):(b))
 #define MIN(a,b) (((a)<(b))?(a):(b))
+#define ATTACKMOVE
+
 
 using namespace std;
 using SCORE = double;
@@ -359,6 +361,14 @@ public:
 				}
 				// record BestMove
 				if(depth == 0){
+					// ¶p™G≥o§@®B¨Oß¿ª®B(ed ¨OπÔ§Ë√C¶‚™∫§l), ™Ω±µ•[ 100 §¿(100 §¿
+					// §£∂WπL§@≠”ßL®Ú™∫§¿º∆°A¶]¶π∂∂ß«§£∑|≈‹°A¶˝¨O≠Ï•ª¶PºÀ¶n™∫®B∑|¶]¶π§¿•X∞™§U)
+					#ifdef ATTACKMOVE
+					if(GetColor(B.fin[lst.mov[i].ed]) == (B.who^1)){
+						m += 100;
+						cerr << "[*] Attack Move!\n";
+					}
+					#endif
 					BestMove = lst.mov[i];
 				}
 				
@@ -496,6 +506,6 @@ mt19937_64 SearchEngine::gen(random_device{}());
 SCORE SearchEngine::finScore[7] = {6095, 3047, 1523, 761, 380, 420, 200}; // http://www.csie.ntnu.edu.tw/~linss/Students_Thesis/2011_06_29_Lao_Yung_Hsiang.pdf
 SCORE SearchEngine::INF=numeric_limits<SCORE>::max();
 SCORE SearchEngine::NINF=numeric_limits<SCORE>::lowest();
-SCORE SearchEngine::vMax = SearchEngine::sumOfFinScore()+10000;
+SCORE SearchEngine::vMax = SearchEngine::sumOfFinScore()+10000; // ≥”™∫Æ…≠‘¿≥∏”≠n§Ò©“¶≥§¿º∆êm∞™
 SCORE SearchEngine::vMin = -SearchEngine::vMax;
 #endif
