@@ -14,7 +14,7 @@
 #include"TranspositionTable.hh"
 #define MAX(a,b) (((a)>(b))?(a):(b))
 #define MIN(a,b) (((a)<(b))?(a):(b))
-#define ATTACKMOVE
+
 
 
 using namespace std;
@@ -50,6 +50,9 @@ public:
 	SearchEngine(){
 		this->logger.open("log.txt",  ios::out | ios::trunc);
 		this->logger << "Start Search" << "\n";
+		#ifdef ATTACKMOVE
+		cerr << "Using Attack Move\n";
+		#endif
 	}
 	~SearchEngine(){
 		this->logger.close();
@@ -148,7 +151,8 @@ public:
 		// * 如果對方砲或王已經出現時, 就直接翻他旁邊(要夠多暗子時才做這件事)
 		assert(B.who != -1);
 		const CLR oppColor = B.who^1;
-		if((B.sumCnt > 28) && (B.cnt[FIN_C + oppColor*7] < 2 || B.cnt[FIN_K + oppColor*7] == 0)){
+		// 如果別人第一子翻出 王
+		if((B.sumCnt == 31) && (B.cnt[FIN_C + oppColor*7] < 2 || B.cnt[FIN_K + oppColor*7] == 0)){
 			assert(randomFlip(B, BestMove));
 			return true;
 		}
@@ -322,7 +326,8 @@ public:
 			// 輸棋時得到 最小 分數
 			return SearchEngine::vMin;
 		}
-		if(milliElapsed > this->timeOut || depth == this->cutOffDepth 
+		// QQ timeout will cause transposition table wrong............
+		if(depth == this->cutOffDepth 
 			|| lst.num == 0){
 			this->logger << "[*] Scout Depth: " << depth << "\n";
 			this->logger << "[*] Board: " << B.who << "\n";
@@ -348,7 +353,8 @@ public:
 				// Scout
 				t = -this->negaScout(nextB, -n, -MAX(alpha, m), BestMove, depth+1);
 				if(depth == 0){
-					cerr << "lst.mov[i].st: " << lst.mov[i].st << " , lst.mov[i].ed" << lst.mov[i].ed << ", value: " << t <<"\n"; 
+					cerr << "now m: " << m <<  ", ";
+					cerr << "scout: lst.mov[i].st: " << lst.mov[i].st << " , lst.mov[i].ed" << lst.mov[i].ed << ", value: " << t <<"\n"; 
 				}
 			}
 			// * Take max

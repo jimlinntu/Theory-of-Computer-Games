@@ -114,6 +114,7 @@ int main(int argc, char* argv[]) {
 	
 	if (argc<=1) {
 	    TimeOut=(B.LoadGame("board.txt")-3)*1000;
+
 	    if(!B.ChkLose())Output(searchEngine.Play(B, 100)); //ÅªÀÉ¼Ò¦¡
 	    return 0;
 	}

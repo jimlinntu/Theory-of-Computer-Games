@@ -209,7 +209,7 @@ int BOARD::LoadGame(const char *fn) {
 		}
 	}
 
-	int r;
+	int r = 0; // 預設是紅色
 	fscanf(fp," %*c%*s%d" ,&r);
 	who=(r==0||r==1?r:-1);
 	fscanf(fp," %*c%*s%d ",&r);
@@ -221,7 +221,19 @@ int BOARD::LoadGame(const char *fn) {
 		if(n>=1)LoadGameReplay(*this,xxx);
 		if(n>=2)LoadGameReplay(*this,yyy);
 	}
-
+	//
+	cerr << "Color is: " << r << "\n";
+	cerr << "Who is: " << this->who << "\n";
+	this->sumCnt = 0;
+	for(int i = 0; i < 14; i++){
+		this->sumCnt += this->cnt[i];
+	}
+	this->initRandom();
+	this->hashKey = 0ULL;
+	this->hashKey ^= BOARD::color[r];
+	for(int i = 0; i < 32; i++){
+		this->hashKey ^= BOARD::s[(int)this->fin[i]][i];
+	}
 	fclose(fp);
 	return r;
 }
