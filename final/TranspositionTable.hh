@@ -22,7 +22,7 @@ struct Record{
 
 class TranspositionTable{
 public:
-    static const Size_ capacity = ((1U << 28)-1); //可以裝多少(28 bit)    
+    static const Size_ capacity = ((1U << 28)); //可以裝多少(28 bit)    
     Size_ size; // 有多少 elements
     Size_ *head;
     Size_ *next;
@@ -36,6 +36,7 @@ public:
     //
     void insert(ULL k, double v, short int f, int d);
     Record getVal(ULL key);
+    void clear();
     // return updating hash ull
     static ULL hashDoMove(MOV m, FIN fromF, FIN toF);
     static bool initRandom();

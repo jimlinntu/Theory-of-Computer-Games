@@ -40,6 +40,7 @@ void TranspositionTable::insert(ULL k, double v, short int f, int d){
 // 取 ULL 最後的 28 個 bit
 Record TranspositionTable::getVal(ULL k){
     Size_ h = static_cast<Size_>(k & ((1ULL << 28) - 1ULL));
+    assert(h < capacity);
     assert(((k ^ static_cast<ULL>(h)) & ((1ULL << 28)-1ULL)) == 0ULL);
     // 如果 i 是 32 bit 全 1, negation 完就會是 0
     for(unsigned int i = this->head[h]; ~i; i = this->next[i]){
@@ -51,4 +52,9 @@ Record TranspositionTable::getVal(ULL k){
         }
     }
     return Record(nullptr, nullptr, nullptr);
+}
+// 清除 hash table
+void TranspositionTable::clear(){
+    fill(this->head, this->head+capacity, (0U-1U));
+    this->size = 0;
 }

@@ -49,6 +49,9 @@ CLR GetColor(const FIN f) {
 }
 
 LVL GetLevel(const FIN f) {
+	if(f >= FIN_X){
+		throw runtime_error("GetLevel");
+	}
 	assert(f<FIN_X);
 	return LVL(f%7);
 }
@@ -179,7 +182,7 @@ void BOARD::Init(char Board[32], int Piece[14], int Color) {
 		}
 		assert(tbl[(int)fin[p]] == Board[i]);
 		// update hashKey
-		this->hashKey ^= this->s[fin[p]][p]; //把每個子的 hash 值 xor 進去
+		this->hashKey ^= this->s[(int)fin[p]][p]; //把每個子的 hash 值 xor 進去
     }
     who = Color;
 	// WARNING: 我們在這裡先不把 turn 的資訊加進去, 之後 DoMove 會做
@@ -286,10 +289,13 @@ void BOARD::Display() const {
 }
 
 int BOARD::MoveGen(MOVLST &lst) const {
+	static POS order[32] = {9, 10, 13, 14, 17, 18, 21, 22, 5, 6, 25, 26, 4, 7, 8, 11, 24, 27, 20, 23,
+							12, 15, 16, 19, 1, 2, 29, 30, 0, 3, 28, 31};
 	// TODO: 要先從離敵人進的子開始搜!!!!!
 	if(who==-1)return false;
 	lst.num=0;
-	for(POS p=0;p<32;p++) {
+	for(POS i=0;i<32;i++) {
+		const POS p = order[i];
 		const FIN pf=fin[p];
 		if(GetColor(pf)!=who)continue;
 		const LVL pl=GetLevel(pf);
@@ -313,7 +319,8 @@ int BOARD::MoveGen(MOVLST &lst) const {
 		}
 	}
 	// 隨機大法, 以避免吃不到子
-	if(lst.num > 0) shuffle(begin(lst.mov), begin(lst.mov) + lst.num, BOARD::gen);
+	// if(lst.num > 0) shuffle(begin(lst.mov), begin(lst.mov) + lst.num, BOARD::gen);
+	// 先從中間子開始搜
 	return lst.num;
 }
 
@@ -435,10 +442,10 @@ void BOARD::DoMove(MOV m, FIN f) {
 		toF = f; // 如果是翻棋步, 那 toF 就會是翻出來的棋
 	}
 	// update hash key (因為 who 會在 main.cc 中先設好)
-	// 如果是第一次被 run 到, 在上面先補上自己 color 的 hash, 如果不是的話 自己的 color hash 已經在裡面了
+	// 如果是第一次被 run 到, 在上面先補上自己原本 color 的 hash, 如果不是的話 自己的 color hash 已經在裡面了
 	if(isFirst){
 		assert(this->who != -1);
-		this->hashKey ^= BOARD::color[this->who];
+		this->hashKey ^= BOARD::color[this->who]; //
 		isFirst = false; // 關掉
 	}
 	// 更新 hashkey
@@ -470,7 +477,7 @@ ULL BOARD::hashDoMove(MOV m, FIN fromF, FIN toF){
     }else{
 		assert(fromF != FIN_X && toF != FIN_X); // 移動子不可為 FIN_X, 目標子一定是空的或是可以吃的子(不會是暗子)
         // * change place
-        // 把原本的棋子先清掉換成空白, 再把原本的棋子放到新的地方去
+        // 把原本的棋子先清掉換成空白, 再把原本的棋子放到新的地方去 (toF 有可能是空白或是敵子)
         updateHash ^= (s[fromF][m.st] ^ s[FIN_E][m.st]) ^ (s[toF][m.ed] ^ s[fromF][m.ed]); 
     }
     return updateHash;
@@ -487,6 +494,7 @@ bool BOARD::initRandom(){
     color[0] = U(BOARD::gen); // red
     color[1] = U(BOARD::gen); // black
     color[2] = U(BOARD::gen); // 都不是
+	return true;
 }
 
 

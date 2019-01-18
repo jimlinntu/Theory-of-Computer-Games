@@ -38,7 +38,7 @@ public:
 	static SCORE vMax;
 	static SCORE vMin;
 	static SCORE finScore[7]; // 0: ´”±N, ..., 6: ßL®Ú
-	int cutOffDepth = -1; // search up to (depth == 7)
+	int cutOffDepth = 7; // search up to (depth == 7)
 	int timeOut; // in milliseconds
 	timeval start;
 	TranspositionTable transTable[2]; // 0: red, 1: black
@@ -56,58 +56,39 @@ public:
 	// ∞µ•X®M©w
 	MOV Play(const BOARD &B, int remain_milliseconds){
 		MOV BestMove(-1, -1);
-		// 
+		// Retrieve from visitedTable 
 		Record record = this->visitedTable.getVal(B.hashKey);
 		if(record.flag != nullptr){
 			// ¶p™G§ß´e∞—≥XπL
 			*record.flag += 1; // add visit time
-			cerr << "[*] Visited Board has: " << bitset<64>(B.hashKey) << "\n";
 		}else{
 			this->visitedTable.insert(B.hashKey, -1, 1, -1);
 		}
-
-		// TODO: Add starting board heuristic play
+		// ∂}ßΩ Rule
 		if(this->specialBoardCondition(B, BestMove)){
 			return BestMove;
 		}
-		assert(B.who != -1); // ¿≥∏”∑|≥Q special condition æ◊±º
+		assert(B.who != -1); // B.who == -1 ∑|≥Q special condition æ◊±º
 		// Pre-evaluation
 		SCORE preScore = this->Eval(B);
 		this->logger << "Prescore is: " << preScore << "\n" << flush;
 		// NegaMax 
 		// * ∂V¶h∑t§l™∫Æ…≠‘™·Æ…∂°§÷§@¬I
-		// this->timeOut = remain_milliseconds * ((33 - B.sumCnt) / 32) - 1;
-		this->timeOut = MIN(5000 , remain_milliseconds / 2);
+		this->timeOut = MIN(10000 , remain_milliseconds / 4);
 		
 		gettimeofday(&this->start, NULL);
 		cerr << "[*] Start negaScout" << "\n";
 		// ID NegaScout
 		SCORE negaScore;
-		// ±q§Tºh∂}©l∑j
-		for(int i = 5; i < 8; i++){
-			this->cutOffDepth = i;
-			timeval stop;
-			gettimeofday(&stop, NULL);
-			const int milliElapsed = (stop.tv_sec - start.tv_sec) * 1000 + (stop.tv_usec-start.tv_usec) / 1000;
-			negaScore = this->negaScout(B, SearchEngine::vMin, SearchEngine::vMax, BestMove, 0);
-			if(milliElapsed > this->timeOut){
-				break;
-			}
-		}
-		// ¶p™G∑j§F¶®¡Z¡Ÿ§Ò∏˚Æt, ∞ÆØ‹∂√¬Ω
-		if(negaScore < preScore){
-			// ¶p™G¡Ÿ¶≥§l•i•H¬Ω¥N¬Ω, ®S¶≥™∫∏‹¥N¡Ÿ¨O•Œ BestMove ®”®´
-			if(B.sumCnt > 0){
-				assert(randomFlip(B, BestMove));
-			}
-		}
-		cerr << "NegaScore - preScore: " << negaScore - preScore << "\n";
+		// 
+		negaScore = this->negaScout(B, SearchEngine::vMin, SearchEngine::vMax, BestMove, 0);
+		cerr << "PreScore: " << preScore << "\n";
 		cerr << "Negascore: " << negaScore << "\n";
 		cerr << "[*] End negaScout" << "\n";
 		
-		// ¶p™G¶]¨∞®S¶≥®B©Œ¨O negaScout ∑j§£•X®B®”
+		// ¶p™G¶]¨∞®S¶≥ MOVLIST, ¶”®S¶≥®B™∫∏‹, ∂√¬Ω
 		if(BestMove.st == -1 || BestMove.ed == -1){
-			// §@©w∑|¶≥§l•i•H¬Ω, ¶]¨∞ negaScout §@©w¶≥ movList
+			// ¶p™G®S¶≥≤æ∞ ®B™∫∏‹§@©w¨O¶≥§l•i•H¬Ω (∞£´D•d¶∫ ex. ®‚∞¶Ø••d¶∫ßL, ¶˝¨O≥o≠”∑|•˝≥Q Judge ßP©wµ≤ßÙ)
 			assert(randomFlip(B, BestMove));
 		}
 		
@@ -121,23 +102,24 @@ public:
 			// FIXME: ∑|•d¶Ì°H°H
 			// ¶p™G§£¨O¬Ω¥—°A≠n¶“º{¨›¨›¶≥®S¶≥•iØ‡≥y¶® 3 ¥`¿Ù
 			BOARD nextB = B;
-			nextB.DoMove(BestMove, FIN(15)); 
-			cerr << "[*] nextB.hashKey: " << bitset<64>(nextB.hashKey) << "\n";
+			nextB.DoMove(BestMove, FIN(15)); // FIN(15) §£∑|•Œ®Ï
 			record = this->visitedTable.getVal(nextB.hashKey);
-			if(record.flag != nullptr) this->logger << "[*] This Board has been visited: " << *record.flag << "\n";
-			// ¶p™G flag §w∏g¨O 2 §F, ®∫¥N∂√¬Ω©Œ¨O∂√®´
-			if(record.flag != nullptr && (*record.flag) >= 2){
+			// ¶p™G flag §w∏g¨O 2 §F, ¥N§£≠n¶A®´≥o§@®B, ßÔ¶®∂√¬Ω©Œ¨O∂√®´
+			if(record.flag != nullptr && (*record.flag) >= 1){
+				cerr << "[*] visit count: " << *record.flag << "\n";
 				// ¶p™G¡Ÿ¶≥§l•i•H¬Ω
 				if(B.sumCnt > 0) {
 					// ¬Ω§lµ¥πÔ§£∑|≥y¶®§T¥`¿Ù
-					assert(this->randomFlip(nextB, BestMove)); // §@©w∑|•i•H¬Ω
+					assert(this->randomFlip(B, BestMove)); // §@©w∑|•i•H¬Ω
 				}else{
 					MOV prohibitMove = BestMove;
-					this->randomMove(nextB, BestMove, prohibitMove); // ∂√®´, ¶˝§£Ø‡®´®Ï prohibit move
+					this->randomMove(B, BestMove, prohibitMove); // ∂√®´, ¶˝§£Ø‡®´®Ï prohibit move
 					assert(BestMove.st != BestMove.ed);
-				}	
+					
+				}
 			}
-			// ¶p™G≥Ã´·øÔ•X®”¨O®´¶Y®B, ¥N∞O¶Ì∞—≥Xº∆¶r
+
+			// (BestMove ¶≥•iØ‡§w∏g¥´§F)¶p™G≥Ã´·øÔ•X®”¨O®´¶Y®B, ¥N∞O¶Ì§U§@®B∞—≥X¶∏º∆, ¶p™G¨O¬Ω§l®B™∫∏‹¥N§£•Œ∞O§F°A¶]¨∞¬Ω§l§£∑|≥y¶®¥`¿Ù
 			if(BestMove.st != BestMove.ed){
 				nextB = B;
 				nextB.DoMove(BestMove, FIN(15));
@@ -149,7 +131,6 @@ public:
 					this->visitedTable.insert(nextB.hashKey, -1, 1, -1);
 				}
 			}
-			
 		}
 		assert(BestMove.st != -1 && BestMove.ed != -1);
 		cerr << "[*] BestMove I choose: " << BestMove.st << " " << BestMove.ed << "\n";
@@ -157,21 +138,18 @@ public:
 	}
 
 	bool specialBoardCondition(const BOARD &B, MOV &BestMove){
-		CLR oppColor = B.who^1;
-		// * who ¡Ÿ®S®M©wÆ…
-		if(B.who == -1) {
+		// * who ¡Ÿ®S®M©wÆ… || B.sumCnt == 32
+		if(B.who == -1 || B.sumCnt == 32) {
+			assert(randomFlip(B, BestMove)); // ¿H´K¬Ω
+			return true;
+		}
+		// * ¶p™GπÔ§ËØ•©Œ§˝§w∏g•X≤{Æ…, ¥N™Ω±µ¬Ω•LÆ«√‰(≠n∞˜¶h∑t§lÆ…§~∞µ≥o•Û®∆)
+		assert(B.who != -1);
+		const CLR oppColor = B.who^1;
+		if((B.sumCnt > 28) && (B.cnt[FIN_C + oppColor*7] < 2 || B.cnt[FIN_K + oppColor*7] == 0)){
 			assert(randomFlip(B, BestMove));
 			return true;
 		}
-		// * •˛≥°êm¡Ÿ®S¬ΩÆ…
-		if(B.sumCnt == 32){
-			// ≥o®B§@©w∑|ßÔ≈‹ BestMove
-			assert(randomFlip(B, BestMove));
-			return true;
-		}
-		// * ¶p™GπÔ§ËØ•§w∏g•X≤{, ¶”•B
-
-		// * ¶p™G´”§w∏g•X≤{, ¶”•Bß⁄™∫ßL®Úêm¡Ÿ¶≥§≠≠”™∫Æ…≠‘
 		
 		// * ¬i≠±§W•ÿ´eêm¨OßO§H™∫§l™∫Æ…≠‘
 		// * ¬i≠±§W•ÿ´eêm¡Ÿ¨O¶€§v™∫§l™∫Æ…≠‘
@@ -179,77 +157,67 @@ public:
 	}
 	
 	bool randomFlip(const BOARD &B, MOV &BestMove){
-		
 		// * §£≠n¬Ω®ÏßO§H™∫§lÆ«√‰
 		// * ∞£§F¶p™Gºƒ§H¬Ω®ÏØ•©Œ´”, ™Ω±µ¬Ω•LÆ«√‰∑F±º•L
 		if(B.sumCnt==0) return false;
 		vector<MOV> movList;
 		vector<MOV> dangerList;
-		CLR oppColor = (B.who^1); // ¶p™G B.who == -1, B.who^1 ∑|≈‹¶® -2, §£ºvêÒ
-		
+		CLR oppColor = (B.who == -1)? (-1):(B.who^1) ; // 
+		// ±ΩπL©“¶≥ position
 		for(POS p = 0; p < 32; p++){
-			cerr << "p: "<< p << "\n";
-			// ¶p™G≥o≠”§l¨O∑t§l
 			bool isDangerous = false;
-			if(B.fin[p] == FIN_X){
-				//¿À¨d•|≠±§K§Ë¶≥®S¶≥ºƒ§H™∫§l
-				for(int dir=0; dir < 4; dir++){
-					POS q = ADJ[p][dir];
-					// ¶p™G¨O¶X≤z™∫®B
-					if(q == -1) continue;
-					// ¶p™G¨Oºƒ§Ë™∫§l, ∫…∂q§£≠n¬ΩÆ«√‰(∞£§FØ•©Œ´”), ¶p™G¨O unknown √C¶‚•N™Ìêm•i•H¬Ω
-					if(GetColor(B.fin[q]) == oppColor && B.who != -1){
-						isDangerous = true;
-						// ¶p™G¨OØ• ©Œ ´”, êm™Ω±µ¬Ω•Lπjæ¿
-						if(GetLevel(B.fin[q]) == LVL_C && GetLevel(B.fin[q]) == LVL_K){
-							BestMove = MOV(p, p);
-							return true;
-						}
+			// ¶p™G≥o≠”§l§£¨O∑t§l™∫∏‹¥N∏ıπL
+			if(B.fin[p] != FIN_X) continue;
+			// ¿À¨d≥o≠”§l™∫•|≠±§K§Ë¶≥®S¶≥ºƒ§H™∫§l
+			for(int dir=0; dir < 4; dir++){
+				POS q = ADJ[p][dir];
+				// ¶p™G§£¨O¶X≤z™∫®B¥N∏ıπL
+				if(q == -1) continue;
+				// ¶p™G¨Oºƒ§Ë™∫§l, ∫…∂q§£≠n¬ΩÆ«√‰(∞£§FØ•©Œ´”), ¶p™G¨O unknown √C¶‚•N™Ìêm•i•H¬Ω
+				if((oppColor != -1) && (GetColor(B.fin[q]) == oppColor)){
+					isDangerous = true;
+					// ¶p™G¨OØ• ©Œ ´”, êm™Ω±µ¬Ω•Lπjæ¿, Ω‰•i•Hß‚•¶®≥≥t¶Y±º
+					if((GetLevel(B.fin[q]) == LVL_C) || (GetLevel(B.fin[q]) == LVL_K)){
+						BestMove = MOV(p, p);
+						return true;
 					}
 				}
-				// ¶p™G§£¶M¿I§~ push back
-				if(!isDangerous) movList.push_back(MOV(p, p));
-				else dangerList.push_back(MOV(p, p));
 			}
+			// ¶p™G§£¶M¿I§~ push back
+			if(!isDangerous) movList.push_back(MOV(p, p));
+			else dangerList.push_back(MOV(p, p));
 		}
 		
 		if(movList.size() == 0){
-			// ¶p™G≥s danger list êm®S¶≥™∫∏‹
-			if(dangerList.size() == 0) return false;
+			assert(dangerList.size() > 0);
 			uniform_int_distribution<int> U(0, dangerList.size()-1);
 			BestMove = dangerList[U(gen)];
 		}else{
 			uniform_int_distribution<int> U(0, movList.size()-1);
 			BestMove = movList[U(gen)];
 		}
-		
 		return true;
 	}
 	void randomMove(const BOARD &B, MOV &BestMove, const MOV &prohitbitMove){
 		cerr << "[!] In Random Move: \n";
-		vector<MOV> movList; // population
+		assert(B.who != -1);
+		vector<MOV> movList; // Candidates
 		for(POS p = 0; p < 32; p++){
 			FIN pf = B.fin[p];
 			// ¶€§v™∫¥—§~ƒ~ƒÚ
-			if(GetColor(pf) != B.who && B.who != -1) continue;
-
+			if(GetColor(pf) != B.who) continue;
+			// ∑j¥M•|≠”§Ë¶V
 			for(int dir = 0; dir < 4; dir++){
 				POS q = ADJ[p][dir];
 				if(q == -1) continue; // ¶p™G¨O§£¶X™k™∫®B¥N∏ıπL
 				FIN qf = B.fin[q];
-				// ¨O•i•H®´¶Y™∫®B  •B §£•i•H¨O≥Q∏T§Ó™∫®B
+				// ¨O•i•H®´¶Y™∫®B •B §£•i•H¨O≥Q∏T§Ó™∫®B
 				if(ChkEats(pf, qf) && !(p == prohitbitMove.st && q == prohitbitMove.ed)){
-					movList.push_back(MOV(p, q));
-					// (ChkEats ∑|¿À¨d¨Oß_¨O™≈©ŒπÔ§Ë§l)¶p™GπÔ§Ë¨O§˝, ∑F±º¶Aª°
-					if(GetColor(qf) == (B.who^1) && GetLevel(qf) == LVL_K){
-						BestMove = MOV(p, q);
-						return;
-					}
+					movList.push_back(MOV(p, q)); // ¶s§U±q p ©π q ®´™∫ move
 				}
 			}
 		}
 		
-		// FIXME: I think i may happen
 		if(movList.size() == 0){
 			// Let it go •u¶n≈˝•L©MßΩ
 			BestMove = prohitbitMove;
@@ -265,14 +233,17 @@ public:
 
 	// •J≤”´‰¶“
 	SCORE negaScout(const BOARD &B, SCORE alpha, SCORE beta, MOV &BestMove, const int depth){
+		
 		// ¿À¨d transposition table
 		Record record; // ¶s retrieve •X®”™∫µ≤™G
 		// ¶p™G B.who ¡Ÿ®S®M©w¥N§£∞µ
 		if(B.who != -1){
 			record = this->transTable[B.who].getVal(B.hashKey);
 			if(record.val != nullptr){
-				cerr << "record value: " << *record.val  << " , flag: " \
-				 << *record.flag << " , remain depth" << *record.depth << "\n";
+				// cerr << "record value: " << *record.val  << " , flag: " 
+				//   << *record.flag << " , remain depth: " << *record.depth << "\n";
+				this->logger <<  "record value: " << *record.val  << " , flag: " \
+				 << *record.flag << " , remain depth: " << *record.depth << "\n";
 			}
 		}
 		if(record.val != nullptr){
@@ -281,14 +252,14 @@ public:
 				// exact
 				if(*record.flag == 0){
 					// ¿À¨d≤`´◊: ©“≥—≤`´◊ §Ò ∏Ã≠±™∫©“≥—≤`´◊¡Ÿ§p
-					if((this->cutOffDepth - depth) <= *record.depth ){
+					if((this->cutOffDepth - depth) <= *record.depth){
 						// •i•H™Ω±µ¶^∂«
 						return *record.val;
 					}
 				}
 				// lower bound(ß‚ alpha ©‘∞™§@¬I)
-				if(*record.flag == 1){
-					if((this->cutOffDepth - depth) <= *record.depth ){
+				else if(*record.flag == 1){
+					if((this->cutOffDepth - depth) <= *record.depth){
 						alpha = MAX(alpha, *record.val);
 					}
 				}
@@ -311,7 +282,8 @@ public:
 		// 	B.MoveGenWithFlip(lst);
 		// }else{
 			B.MoveGen(lst);
-		// }
+		// 
+
 		// * Time out
 		// * If win (winner is not other)
 		// * depth cut off
@@ -319,14 +291,22 @@ public:
 		timeval stop;
 		gettimeofday(&stop, NULL);
 		const int milliElapsed = (stop.tv_sec - start.tv_sec) * 1000 + (stop.tv_usec-start.tv_usec) / 1000;
-
-		if(milliElapsed > this->timeOut || B.getWinner() != -1 
-			|| depth == this->cutOffDepth || lst.num == 0){
+		// ¶p™Gƒπ§F¥Nµπ´‹∞™§¿, ª∑∂WπL©“¶≥¶n§l™∫§¿º∆
+		const CLR winner = B.getWinner();
+		if(winner != -1){
+			// ƒπ¥—Æ…±o®Ï ≥Ã§j §¿º∆
+			if(winner == B.who) return SearchEngine::vMax;
+			// øÈ¥—Æ…±o®Ï ≥Ã§p §¿º∆
+			return SearchEngine::vMin;
+		}
+		if(milliElapsed > this->timeOut || depth == this->cutOffDepth 
+			|| lst.num == 0){
 			this->logger << "[*] Scout Depth: " << depth << "\n";
 			this->logger << "[*] Board: " << B.who << "\n";
 			this->logger << "[*] Elapse seconds: " << milliElapsed / 1000 << "\n";
 			return Eval(B);
 		}
+		
 		SCORE m = SearchEngine::NINF, n = beta;
 		SCORE t;
 		BOARD nextB;
@@ -335,6 +315,8 @@ public:
 			// * Chance node
 			// TODO:
 			if(lst.mov[i].st == lst.mov[i].ed){
+				// TODO: 
+				assert(false);
 				// Chance Search()
 				t = this->chanceSearch(B, lst.mov[i], MAX(alpha, m), beta, BestMove, depth);
 			}
@@ -343,6 +325,9 @@ public:
 				nextB.DoMove(lst.mov[i], FIN_E); // ´·≠± FIN_E •Œ§£®Ï
 				// Scout
 				t = -this->negaScout(nextB, -n, -MAX(alpha, m), BestMove, depth+1);
+				if(depth == 0){
+					cerr << "lst.mov[i].st: " << lst.mov[i].st << " , lst.mov[i].ed" << lst.mov[i].ed << ", value: " << t <<"\n"; 
+				}
 			}
 			// * Take max
 			if(t > m){
@@ -358,12 +343,13 @@ public:
 				}
 				
 				if(m >= beta){
+					// §w∏g¶≥¶s¶b element Æ…
 					if(record.val != nullptr){
-						// ©“≥—≤`´◊§Ò∏˚≤`Æ…
+						// ©“≥—≤`´◊§Ò∏˚≤`Æ…, ßÛ∑s≠»
 						if((this->cutOffDepth - depth) >  *record.depth){
 							*record.val = m;
 							*record.flag = 1; // lower bound
-							*record.depth = this->cutOffDepth - depth;
+							*record.depth = this->cutOffDepth - depth; // ¨ˆø˝©“≥—≤`´◊
 						}
 					} // lower bound
 					else this->transTable[B.who].insert(B.hashKey, m, 1, this->cutOffDepth - depth);
@@ -384,11 +370,7 @@ public:
 					*record.flag = 0;
 					*record.depth = this->cutOffDepth - depth;
 				}
-			}else{
-				// ™Ω±µ¥°§J≠»
-				this->transTable[B.who].insert(B.hashKey, m, 0, this->cutOffDepth - depth);
-			}
-			
+			}else this->transTable[B.who].insert(B.hashKey, m, 0, this->cutOffDepth - depth);
 		}else{
 			if(record.val != nullptr){
 				if((this->cutOffDepth - depth) >  *record.depth){
@@ -454,15 +436,15 @@ public:
 		return weightVSum / (double)B.sumCnt;
 	}
 
-	// h(B): Nega version(return h(p) )
+	// h(B): Nega version(return h(p), from the view of current Board)
 	SCORE Eval(const BOARD &B) {
 		assert(B.who != -1);
 		SCORE cnt[2]={0,0}; // 0: ¨ı§Ë, 1: ∂¬§Ë
 		// ≠p∫‚¬Ω∂}¥—™∫§l§O§¿º∆
 		for(POS p=0;p<32;p++){
-			const CLR c=GetColor(B.fin[p]);
+			const CLR c = GetColor(B.fin[p]);
 			// ¶p™G§£¨O•º¬Ω∂}™∫
-			if(c!=-1){
+			if(c != -1){
 				// ≠p∫‚§l§O§¿º∆
 				cnt[c] += SearchEngine::finScore[GetLevel(B.fin[p])];
 			}
@@ -476,7 +458,7 @@ public:
 		// TODO: ∂Z¬˜§]≠n∫‚§@¬I§¿º∆°I°I°I
 		return cnt[B.who]-cnt[B.who^1];
 	}
-
+	// Sum of fin score
 	static SCORE sumOfFinScore(){
 		static const int tbl[]={1,2,2,2,2,2,5};
 		SCORE sum = 0;
@@ -490,9 +472,9 @@ public:
 
 mt19937_64 SearchEngine::gen(random_device{}());
 // §l§O§¿º∆(0: ´”, ..., 6:®Ú)
-SCORE SearchEngine::finScore[7] = {6095, 3047, 1523, 761, 380, 420, 200};
+SCORE SearchEngine::finScore[7] = {6095, 3047, 1523, 761, 380, 420, 200}; // http://www.csie.ntnu.edu.tw/~linss/Students_Thesis/2011_06_29_Lao_Yung_Hsiang.pdf
 SCORE SearchEngine::INF=numeric_limits<SCORE>::max();
 SCORE SearchEngine::NINF=numeric_limits<SCORE>::lowest();
-SCORE SearchEngine::vMax = SearchEngine::sumOfFinScore();
-SCORE SearchEngine::vMin = -SearchEngine::vMin;
+SCORE SearchEngine::vMax = SearchEngine::sumOfFinScore()+10000;
+SCORE SearchEngine::vMin = -SearchEngine::vMax;
 #endif
