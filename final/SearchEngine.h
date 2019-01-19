@@ -407,7 +407,12 @@ public:
 					cerr << "What the hell?\n";
 					cerr << "alpha: " << alpha << " ,beta: " << beta << "\n";
 					cerr << "record.val: " << *record.val << " , now m: " << m << "\n";
-					assert(m == *record.val); // ¦pªG²`«×¤@¼Ë, ±o¨ìªº­È¥²¶·¤@¼Ë
+					// TODO: «á¨Ó¹ê´úµo²{, ³oÃäÁÙ¬O·|¼Q, §ÚÄ±±o¥i¯à¬O¦]¬° lower bound 
+					// ¸ò upper bound flag ¦³¾÷²v§â alpha beta bound ±À°ª(³o¬q function ªº³Ì«e­±), ¥H¦Ü©ó¦^¶Çªº­È¦³¥i¯à¸ò¥H«e¤£¦P
+					// P.S. (³o¥u¬O§Úªº±À´ú, ¦pªG¦³±jÍª¾¹D¬°¤°»ò¦A³Â·Ğ§i¶D§Ú¤F)
+					// assert(m == *record.val); // ¦pªG²`«×¤@¼Ë, ±o¨ìªº­È¥²¶·¤@¼Ë
+					// ¨Ï¥Î³Ì·sªº­È!!!!!
+					*record.val = m;
 				}
 				// ÀË¬d²`«×¦³¨S¦³ÅÜ²`
 				// remain ²`«×¤j©ó hash entry ªº
