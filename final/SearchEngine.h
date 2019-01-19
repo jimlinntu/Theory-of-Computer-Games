@@ -40,7 +40,7 @@ public:
 	static SCORE vMax;
 	static SCORE vMin;
 	static SCORE finScore[7]; // 0: 帥將, ..., 6: 兵卒
-	int cutOffDepth = 7; // search up to (depth == 7)
+	int cutOffDepth = 8; // search up to (depth == 7)
 	int timeOut; // in milliseconds
 	timeval start;
 	TranspositionTable transTable[2]; // 0: red, 1: black
@@ -370,6 +370,7 @@ public:
 					// 如果這一步是攻擊步(ed 是對方顏色的子), 直接加 100 分(100 分
 					// 不超過一個兵卒的分數，因此順序不會變，但是原本同樣好的步會因此分出高下)
 					#ifdef ATTACKMOVE
+					// FIXME: BUG 因為如果循環盤面的話, 因為 transposition table caching 的關係, 會讓這一步 attack move 加完的值被存在 table 裡面造成誤判
 					if(GetColor(B.fin[lst.mov[i].ed]) == (B.who^1)){
 						m += 100;
 						cerr << "[*] Attack Move!\n";
@@ -399,6 +400,13 @@ public:
 		if(m > alpha){
 			// element 存在時
 			if(record.val != nullptr){
+				// 如果是 flag 是 exact, 那應該要一樣
+				if(*record.flag == 0 && (this->cutOffDepth - depth) == *record.depth){
+					cerr << "What the hell?\n";
+					cerr << "alpha: " << alpha << " ,beta: " << beta << "\n";
+					cerr << "record.val: " << *record.val << " , now m: " << m << "\n";
+					assert(m == *record.val); // 如果深度一樣, 得到的值必須一樣
+				}
 				// 檢查深度有沒有變深
 				// remain 深度大於 hash entry 的
 				if((this->cutOffDepth - depth) >  *record.depth){
