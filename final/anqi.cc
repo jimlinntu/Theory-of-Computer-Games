@@ -317,7 +317,8 @@ int BOARD::MoveGen(MOVLST &lst) const {
 			const FIN qf=fin[q];
 			if(pl!=LVL_C){if(!ChkEats(pf,qf))continue;}
 			else if(qf!=FIN_E)continue;
-			lst.mov[lst.num++]=MOV(p,q);
+			// 後面那串是指是否為 attack move
+			lst.mov[lst.num++]=MOV(p,q, GetColor(qf) == (this->who^1));
 		}
 		if(pl!=LVL_C)continue;
 		for(int z=0;z<4;z++) {
@@ -325,14 +326,24 @@ int BOARD::MoveGen(MOVLST &lst) const {
 			for(POS q=p;(q=ADJ[q][z])!=-1;) {
 				const FIN qf=fin[q];
 				if(qf==FIN_E||++c!=2)continue;
-				if(qf!=FIN_X&&GetColor(qf)!=who)lst.mov[lst.num++]=MOV(p,q);
+				if(qf!=FIN_X&&GetColor(qf)!=who){
+					lst.mov[lst.num++]=MOV(p,q, GetColor(qf) == (this->who^1));			
+				}
 				break;
 			}
 		}
 	}
 	// 隨機大法, 以避免吃不到子
 	// if(lst.num > 0) shuffle(begin(lst.mov), begin(lst.mov) + lst.num, BOARD::gen);
-	// 先從中間子開始搜
+	// 從 攻擊步開始先搜(這樣的話如果 tie 也可以優先選擇攻擊步)
+	sort(begin(lst.mov), begin(lst.mov) + lst.num, 
+		[](const MOV &left, const MOV &right)-> bool{
+			return ((int)left.isAttack > (int)right.isAttack); // 如果是 attack 的話就算比較 "小" 的值
+		});
+	// for(int i = 0; i < lst.num; i++){
+	// 	cerr << ((lst.mov[i].isAttack)? ('t'):('f')) << " ";
+	// }
+	// cerr << "\n";
 	return lst.num;
 }
 
@@ -509,7 +520,8 @@ bool BOARD::initRandom(){
 	return true;
 }
 
-
+// TODO:
+/*
 int BOARD::MoveGenWithFlip(MOVLST &lst) const{
 	// TODO: Sort move ordering (先考慮 level 大的棋子)
 	lst.num=0;
@@ -553,3 +565,4 @@ int BOARD::MoveGenWithFlip(MOVLST &lst) const{
 	}
 	return lst.num;
 }
+*/

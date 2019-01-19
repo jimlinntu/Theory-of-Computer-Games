@@ -353,7 +353,9 @@ public:
 				// Scout
 				t = -this->negaScout(nextB, -n, -MAX(alpha, m), BestMove, depth+1);
 				if(depth == 0){
-					cerr << "now m: " << m <<  ", ";
+					
+					cerr << "\n";
+					cerr << "now m: " << m <<  ", attack flag: " << ((lst.mov[i].isAttack)? ('t'):('f')) << "\n";
 					cerr << "scout: lst.mov[i].st: " << lst.mov[i].st << " , lst.mov[i].ed" << lst.mov[i].ed << ", value: " << t <<"\n"; 
 				}
 			}

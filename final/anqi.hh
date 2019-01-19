@@ -44,12 +44,21 @@ typedef int POS;
 struct MOV {
 	POS st; // şÂI
 	POS ed; // ²×ÂI // ­Y ed==st ªí¥Ü¬OÂ½¤l
+	bool isAttack;
 
 	MOV() {}
-	MOV(POS s,POS e):st(s),ed(e) {}
+	MOV(POS s,POS e):st(s),ed(e), isAttack(false){}
+	MOV(POS s,POS e, bool attack):st(s),ed(e), isAttack(attack) {}
 
-	bool operator==(const MOV &x) const {return st==x.st&&ed==x.ed;}
-	MOV operator=(const MOV &x) {st=x.st;ed=x.ed;return MOV(x.st, x.ed);}
+	bool operator==(const MOV &x) const {
+		return (st==x.st && ed==x.ed && isAttack == x.isAttack);
+	}
+	MOV operator=(const MOV &x) {
+		st=x.st;
+		ed=x.ed;
+		isAttack=x.isAttack;
+		return MOV(x.st, x.ed, x.isAttack);
+	}
 };
 
 struct MOVLST {
