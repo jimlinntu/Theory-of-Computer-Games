@@ -312,7 +312,8 @@ public:
 				else{
 					// 還原 alpha, beta(如果之前有改到)
 					// 經過實測(100場)發現這樣加就不會 assert(*record.val == m) 噴掉
-					// 我覺得是可能是因為淺層的 node 可能分數會比較高, 造成 alpha, beta 值被改動的時候會噴掉
+					// 我覺得是可能是因為如果你把 alpha, beta bound 變窄時，丟下去 Scout 或 negaMax 搜的時候拿到的值可能會不一樣(因為提到 break 的時間點會不一樣)
+					// 所以造成 assert(*record.val == m) 會噴掉，因為你可能拿到的 Scout, negaMax 值會不同
 					if(*record.flag == 1 && (this->cutOffDepth - depth) <= *record.depth){
 						alpha = alphaOld;
 					}else if(*record.flag == 2 && (this->cutOffDepth - depth) <= *record.depth){
