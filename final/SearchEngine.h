@@ -260,7 +260,10 @@ public:
 
 	// ¥J²Ó«ä¦Ò
 	SCORE negaScout(const BOARD &B, SCORE alpha, SCORE beta, MOV &BestMove, const int depth){
-		
+		if(alpha >= beta){
+			cerr << "Why alpha < beta???\n" << "alpha: " << alpha << " " << beta << "\n";
+			assert(false);
+		}
 		// ÀË¬d transposition table
 		Record record; // ¦s retrieve ¥X¨Óªºµ²ªG
 		// ¦pªG B.who ÁÙ¨S¨M©w´N¤£°µ
@@ -276,8 +279,10 @@ public:
 		if(record.val != nullptr){
 			// ²Ä¤@¼h¤£¥iª½±µ¦^¶Ç, ¤£µM·|§ä¤£¨ì BestMove
 			if(depth != 0){
+				double alphaOld, betaOld; // ­ì¨Óªº alpha, beta
 				// exact
 				if(*record.flag == 0){
+					// FIXME: ·|¤£·|¬O¦]¬°²`«×§Ú³]¦¨ <= ªºÃö«Y¡H ¦]¬° == ªº®É­Ô¤~·|¤@¼Ë¡H¡H
 					// ÀË¬d²`«×: ©Ò³Ñ²`«× ¤ñ ¸Ì­±ªº©Ò³Ñ²`«×ÁÙ¤p
 					if((this->cutOffDepth - depth) <= *record.depth){
 						// ¥i¥Hª½±µ¦^¶Ç
@@ -287,18 +292,32 @@ public:
 				// lower bound(§â alpha ©Ô°ª¤@ÂI)
 				else if(*record.flag == 1){
 					if((this->cutOffDepth - depth) <= *record.depth){
+						alphaOld = alpha;
 						alpha = MAX(alpha, *record.val);
 					}
 				}
 				// upper bound(§â beta ©Ô§C¤@ÂI)
 				else if(*record.flag == 2){
 					if((this->cutOffDepth - depth) <= *record.depth){
+						betaOld = beta;
 						beta = MIN(beta, *record.val);
 					}
 				}
 				// check cutoff
 				if(alpha >= beta){
-					return beta;
+					return *record.val; // fail-soft
+					return alpha; // assert(*record.val == m) bugs occur at here!!!! Because we need to return fail-soft value
+				}
+				// ¦n¹³¦pªG alpha, beta ¦pªG bound ¨S¦³½Ä¨ì¡AÀ³¸Ó­n¥Î¦^­ì¨Óªº alpha beta, ¤£µM¦n¹³(¤£¬O«Ü½T©w)·|³y¦¨ assert(m == *record.val) ¼Q±¼?
+				else{
+					// ÁÙ­ì alpha, beta(¦pªG¤§«e¦³§ï¨ì)
+					// ¸g¹L¹ê´ú(100³õ)µo²{³o¼Ë¥[´N¤£·| assert(*record.val == m) ¼Q±¼
+					// §ÚÄ±±o¬O¥i¯à¬O¦]¬°²L¼hªº node ¥i¯à¤À¼Æ·|¤ñ¸û°ª, ³y¦¨ alpha, beta ­È³Q§ï°Êªº®É­Ô·|¼Q±¼
+					if(*record.flag == 1 && (this->cutOffDepth - depth) <= *record.depth){
+						alpha = alphaOld;
+					}else if(*record.flag == 2 && (this->cutOffDepth - depth) <= *record.depth){
+						beta = betaOld;
+					}
 				}
 			}
 		}
@@ -351,10 +370,11 @@ public:
 			else{
 				nextB.DoMove(lst.mov[i], FIN_E); // «á­± FIN_E ¥Î¤£¨ì
 				// Scout
-				t = -this->negaScout(nextB, -n, -MAX(alpha, m), BestMove, depth+1);
+				t = -this->negaScout(nextB, -n, -MAX(alpha, m), BestMove, depth+1); 
 				if(depth == 0){
 					
 					cerr << "\n";
+					cerr << "alpha: " << alpha << " ,beta: " << beta << "\n";
 					cerr << "now m: " << m <<  ", attack flag: " << ((lst.mov[i].isAttack)? ('t'):('f')) << "\n";
 					cerr << "scout: lst.mov[i].st: " << lst.mov[i].st << " , lst.mov[i].ed" << lst.mov[i].ed << ", value: " << t <<"\n"; 
 				}
@@ -410,7 +430,9 @@ public:
 					// TODO: «á¨Ó¹ê´úµo²{, ³oÃäÁÙ¬O·|¼Q, §ÚÄ±±o¥i¯à¬O¦]¬° lower bound 
 					// ¸ò upper bound flag ¦³¾÷²v§â alpha beta bound ±À°ª(³o¬q function ªº³Ì«e­±), ¥H¦Ü©ó¦^¶Çªº­È¦³¥i¯à¸ò¥H«e¤£¦P
 					// P.S. (³o¥u¬O§Úªº±À´ú, ¦pªG¦³±jŽÍª¾¹D¬°¤°»ò¦A³Â·Ð§i¶D§Ú¤F)
-					// assert(m == *record.val); // ¦pªG²`«×¤@¼Ë, ±o¨ìªº­È¥²¶·¤@¼Ë
+					// «á¨Ó¦A¹ê´úµo²{¡A¨ä¹ê­n¼²¨ì³o­Ó bug »áÃøªº, ÄY­«ÃhºÃ­ì¦]¥i¯à¬O¦]¬° s[][], color[] ¥i¯à¦³¼²¨ì hash ­È
+					// «á¨Ó¦Aµo²{¡A¦pªG TTB ¦^¶Ç¬O fail-soft, ¦n¹³ÁÙ¬O·|¦³³o­Ó°ÝÃD¡A¶}©l¦b·Q·|¤£·|¬O¦]¬° alpha, beta ³QTTB cache½Õ¹L¤§«á³y¦¨¤£¦Pªº behavior
+					assert(m == *record.val); // ¦pªG²`«×¤@¼Ë, ±o¨ìªº­È¥²¶·¤@¼Ë
 					// ¨Ï¥Î³Ì·sªº­È!!!!!
 					*record.val = m;
 				}

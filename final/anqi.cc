@@ -336,7 +336,7 @@ int BOARD::MoveGen(MOVLST &lst) const {
 	// 隨機大法, 以避免吃不到子
 	// if(lst.num > 0) shuffle(begin(lst.mov), begin(lst.mov) + lst.num, BOARD::gen);
 	// 從 攻擊步開始先搜(這樣的話如果 tie 也可以優先選擇攻擊步)
-	sort(begin(lst.mov), begin(lst.mov) + lst.num, 
+	stable_sort(begin(lst.mov), begin(lst.mov) + lst.num, 
 		[](const MOV &left, const MOV &right)-> bool{
 			return ((int)left.isAttack > (int)right.isAttack); // 如果是 attack 的話就算比較 "小" 的值
 		});
