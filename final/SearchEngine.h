@@ -260,7 +260,8 @@ public:
 
 	// ¥J²Ó«ä¦Ò
 	SCORE negaScout(const BOARD &B, SCORE alpha, SCORE beta, MOV &BestMove, const int depth){
-		if(alpha >= beta){
+		// alpha ¦³¥i¯à ¤j©ó beta, 
+		if(alpha > beta){
 			cerr << "Why alpha < beta???\n" << "alpha: " << alpha << " " << beta << "\n";
 			assert(false);
 		}
@@ -279,47 +280,53 @@ public:
 		if(record.val != nullptr){
 			// ²Ä¤@¼h¤£¥iª½±µ¦^¶Ç, ¤£µM·|§ä¤£¨ì BestMove
 			if(depth != 0){
-				double alphaOld, betaOld; // ­ì¨Óªº alpha, beta
+				
 				// exact
 				if(*record.flag == 0){
-					// FIXME: ·|¤£·|¬O¦]¬°²`«×§Ú³]¦¨ <= ªºÃö«Y¡H ¦]¬° == ªº®É­Ô¤~·|¤@¼Ë¡H¡H
-					// ÀË¬d²`«×: ©Ò³Ñ²`«× ¤ñ ¸Ì­±ªº©Ò³Ñ²`«×ÁÙ¤p
-					if((this->cutOffDepth - depth) <= *record.depth){
+					// ²z½×¤W¡G°²³] A node ©³¤U¦³¤@¨B·|¨«¨ì A node, ¨º²Ä¤@¦¸·jªº®É­Ô ¤U­±ªº A node °O¦b hash ªº­È·|³Q»\±¼
+					// ©Ò¥H³Ì«á¯d¤U¨Óªº hash ­È·|¬O root A node
+					// ¦]¦¹¡A²Ä¤G¦¸·jªº®É­Ô¡A¦pªG©³¤U³o¤@¦æ¨Ï¥Î <= ªº¸Ü¡A·|³y¦¨©³¤Uªº A node ¨Ï¥Îªº¬O ²Ä¤@¦¸·j´M®É root A node ªº­È
+					// ©Ò¥H²Ä¤G¦¸·j´M¤~·|³y¦¨¤£¦Pµ²ªG¡I¡I¡I(assert(*record.val == m) ·|¿ùªº­ì¦])
+					// ¹ê´ú 70 ´X³õµo²{¦pªG¥u¥Î³o­ÓÀ³¸Ó´N¤£·|¼Q¤F¡I¡C
+					if((this->cutOffDepth - depth) == *record.depth){
 						// ¥i¥Hª½±µ¦^¶Ç
-						return *record.val;
+						return *record.val; // ³o¤@¨B¥i¯à·|³y¦¨²`«×¤£¦P ¦Ó¦³¤£¦Pªº­È¡H
 					}
 				}
 				// lower bound(§â alpha ©Ô°ª¤@ÂI)
-				else if(*record.flag == 1){
-					if((this->cutOffDepth - depth) <= *record.depth){
-						alphaOld = alpha;
-						alpha = MAX(alpha, *record.val);
-					}
-				}
-				// upper bound(§â beta ©Ô§C¤@ÂI)
-				else if(*record.flag == 2){
-					if((this->cutOffDepth - depth) <= *record.depth){
-						betaOld = beta;
-						beta = MIN(beta, *record.val);
-					}
-				}
+				// ²z½×¤W¡G²Ä¤@¦¸ A node ©³¤U©¹¤U·jªº®É­Ô¡A¥i¯à©³¤Uªº­«½Æ½L­± A node ¦³³Q cache ¦í(¦ý¬O¬O¤ñ¸û²L¼hªº)¡A¦]¦¹ root A node ·jªº®É­Ô, ·|¨Ï¥Î¨ì²L¼h cache ¦íªº­È, ¦Ó³o­Ó cache ªº­È¥i¯à·|³y¦¨¤@¶}©l alpha ´N³]±o¤ñ¸û°ª¡]¦P®É ³o­Ó cache ­È¥i¯à¬O±q²Ä 4 ­Ó branch §ä¨ìªº¡A¦ý¤@¶}©l´N³]©w¬° alpha ¥i¯à·|³y¦¨«e­±ªº branch ¼Q¥X¤£¦P¼Q¥X¤£¦Pªº­È
+				// ¦ý²Ä¤G¦¸ A node ·jªº®É­Ô¡A¦A¤@¦¸¸I¨ì©³¤Uªº­«½Æ½L­± A node ®É¡A¦]¬° A node ¤w¸g³Q²`¤@¼hªº­È´«±¼¤F¡A¦]¦¹¥Î¤£¨ì cache ªº­È¤F¡A©Ò¥H¨Ï¥Îªº alpha ¬O¥Lªº parent ¶Ç¨Óªº
+				// µ²½×¡G´`Àô½L­±®É¥Î TTB ­n«Ü¤p¤ß¡I¡I¡I¡I
+				// else if(*record.flag == 1){
+				// 	// ³oÃä¤]­n§ï¦¨ ==¡A¥HÁ×§K negaScout ¤¤¦³ loop
+				// 	if((this->cutOffDepth - depth) == *record.depth){
+				// 		alpha = MAX(alpha, *record.val); 
+				// 	}
+				// }
+				// // upper bound(§â beta ©Ô§C¤@ÂI)
+				// else if(*record.flag == 2){
+				// 	// ³oÃä¤]­n§ï¦¨ ==¡A¥HÁ×§K negaScout ¤¤¦³ loop
+				// 	if((this->cutOffDepth - depth) == *record.depth){
+				// 		beta = MIN(beta, *record.val);
+				// 	}
+				// }
 				// check cutoff
-				if(alpha >= beta){
-					return *record.val; // fail-soft
-					return alpha; // assert(*record.val == m) bugs occur at here!!!! Because we need to return fail-soft value
-				}
-				// ¦n¹³¦pªG alpha, beta ¦pªG bound ¨S¦³½Ä¨ì¡AÀ³¸Ó­n¥Î¦^­ì¨Óªº alpha beta, ¤£µM¦n¹³(¤£¬O«Ü½T©w)·|³y¦¨ assert(m == *record.val) ¼Q±¼?
-				else{
-					// ÁÙ­ì alpha, beta(¦pªG¤§«e¦³§ï¨ì)
-					// ¸g¹L¹ê´ú(100³õ)µo²{³o¼Ë¥[´N¤£·| assert(*record.val == m) ¼Q±¼
-					// §ÚÄ±±o¬O¥i¯à¬O¦]¬°¦pªG§A§â alpha, beta bound ÅÜ¯¶®É¡A¥á¤U¥h Scout ©Î negaMax ·jªº®É­Ô®³¨ìªº­È¥i¯à·|¤£¤@¼Ë(¦]¬°´£¨ì break ªº®É¶¡ÂI·|¤£¤@¼Ë)
-					// ©Ò¥H³y¦¨ assert(*record.val == m) ·|¼Q±¼¡A¦]¬°§A¥i¯à®³¨ìªº Scout, negaMax ­È·|¤£¦P
-					if(*record.flag == 1 && (this->cutOffDepth - depth) <= *record.depth){
-						alpha = alphaOld;
-					}else if(*record.flag == 2 && (this->cutOffDepth - depth) <= *record.depth){
-						beta = betaOld;
-					}
-				}
+				// if(alpha >= beta){
+				// 	return *record.val; // fail-soft
+				// 	return alpha; // assert(*record.val == m) bugs occur at here!!!! Because we need to return fail-soft value
+				// }
+				// // ¦n¹³¦pªG alpha, beta ¦pªG bound ¨S¦³½Ä¨ì¡AÀ³¸Ó­n¥Î¦^­ì¨Óªº alpha beta, ¤£µM¦n¹³(¤£¬O«Ü½T©w)·|³y¦¨ assert(m == *record.val) ¼Q±¼?
+				// else{
+				// 	// ÁÙ­ì alpha, beta(¦pªG¤§«e¦³§ï¨ì)
+				// 	// ¸g¹L¹ê´ú(100³õ)µo²{³o¼Ë¥[´N¤£·| assert(*record.val == m) ¼Q±¼
+				// 	// §ÚÄ±±o¬O¥i¯à¬O¦]¬°¦pªG§A§â alpha, beta bound ÅÜ¯¶®É¡A¥á¤U¥h Scout ©Î negaMax ·jªº®É­Ô®³¨ìªº­È¥i¯à·|¤£¤@¼Ë(¦]¬°´£¨ì break ªº®É¶¡ÂI·|¤£¤@¼Ë)
+				// 	// ©Ò¥H³y¦¨ assert(*record.val == m) ·|¼Q±¼¡A¦]¬°§A¥i¯à®³¨ìªº Scout, negaMax ­È·|¤£¦P
+				// 	if(*record.flag == 1 && (this->cutOffDepth - depth) <= *record.depth){
+				// 		alpha = alphaOld;
+				// 	}else if(*record.flag == 2 && (this->cutOffDepth - depth) <= *record.depth){
+				// 		beta = betaOld;
+				// 	}
+				// }
 			}
 		}
 		
@@ -386,7 +393,7 @@ public:
 					m = t;
 				}else{
 					// Re-search
-					m = -negaScout(nextB, -beta, -t, BestMove, depth+1);
+					m = -negaScout(nextB, -beta, -t, BestMove, depth+1); 
 				}
 				// record BestMove
 				if(depth == 0){
@@ -417,7 +424,7 @@ public:
 					return m;
 				}
 			}
-			n = MAX(alpha, m) + 1; // null window
+			n = MAX(alpha, m) + 0.1; // ÁÙ¬O¦]¬° null window ­ì¥»³]¦¨ +1 ªºÃö«Y
 		}
 		// m in [alpha, beta]
 		if(m > alpha){
@@ -432,7 +439,8 @@ public:
 					// ¸ò upper bound flag ¦³¾÷²v§â alpha beta bound ±À°ª(³o¬q function ªº³Ì«e­±), ¥H¦Ü©ó¦^¶Çªº­È¦³¥i¯à¸ò¥H«e¤£¦P
 					// P.S. (³o¥u¬O§Úªº±À´ú, ¦pªG¦³±jŽÍª¾¹D¬°¤°»ò¦A³Â·Ð§i¶D§Ú¤F)
 					// «á¨Ó¦A¹ê´úµo²{¡A¨ä¹ê­n¼²¨ì³o­Ó bug »áÃøªº, ÄY­«ÃhºÃ­ì¦]¥i¯à¬O¦]¬° s[][], color[] ¥i¯à¦³¼²¨ì hash ­È
-					// «á¨Ó¦Aµo²{¡A¦pªG TTB ¦^¶Ç¬O fail-soft, ¦n¹³ÁÙ¬O·|¦³³o­Ó°ÝÃD¡A¶}©l¦b·Q·|¤£·|¬O¦]¬° alpha, beta ³QTTB cache½Õ¹L¤§«á³y¦¨¤£¦Pªº behavior
+					// «á¨Ó¦Aµo²{¡A¦pªG TTB ¦^¶Ç¬O fail-soft, ¦n¹³ÁÙ¬O·|¦³³o­Ó°ÝÃD¡A¶}©l¦b·Q·|¤£·|¬O¦]¬° alpha, beta ³Q TTB cache½Õ¹L¤§«á³y¦¨¤£¦Pªº behavior
+					// «á¨Ó¤S¦A«ä¦Ò¡A·|¤£·|¬O¦]¬°´`Àô½L­±©Ò³y¦¨ªº ---> µ²½×¬O¡GÀ³¸Ó¬O¤F
 					assert(m == *record.val); // ¦pªG²`«×¤@¼Ë, ±o¨ìªº­È¥²¶·¤@¼Ë
 					// ¨Ï¥Î³Ì·sªº­È!!!!!
 					*record.val = m;
@@ -447,6 +455,7 @@ public:
 			}else this->transTable[B.who].insert(B.hashKey, m, 0, this->cutOffDepth - depth);
 		}else{
 			if(record.val != nullptr){
+				// ¥Î³Ì²`ªº²`«×»\¹L¥h
 				if((this->cutOffDepth - depth) >  *record.depth){
 					*record.val = m;
 					*record.flag = 2; // upper bound
